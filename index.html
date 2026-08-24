@@ -1,522 +1,411 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Genetic Differentiation & Regional Phenotypes</title>
-<!-- Tailwind CSS -->
-<script src="https://cdn.tailwindcss.com"></script>
-<!-- Leaflet CSS & JS -->
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Genomic Reality - 195 Country Ethno-Genotypic Map</title>
+  
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
 
-<style>
-#map {
-  background-color: #93c5fd !important;
-  font-family: ui-sans-serif, system-ui, sans-serif;
-}
-.custom-tooltip {
-  background: #ffffff;
-  color: #0f172a;
-  border: 1px solid #d97706;
-  border-radius: 0.375rem;
-  padding: 6px 10px;
-  font-weight: 600;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
-}
-</style>
+  <style>
+    :root {
+      --bg-light: #f8fafc;
+      --panel-bg: rgba(255, 255, 255, 0.96);
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --accent: #2563eb;
+      --border-color: #e2e8f0;
+      --shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      color: var(--text-main);
+      background-color: var(--bg-light);
+      height: 100vh;
+      width: 100vw;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      height: 60px;
+      background: #ffffff;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      z-index: 1000;
+    }
+
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand-logo {
+      width: 26px; height: 26px;
+      background: linear-gradient(135deg, #2563eb, #7c3aed);
+      border-radius: 50%;
+    }
+    .brand h1 { font-size: 1.2rem; font-weight: 700; letter-spacing: -0.02em; }
+    .brand span { color: var(--accent); }
+
+    #map { flex: 1; width: 100%; height: calc(100vh - 60px); background: #e0f2fe; }
+
+    .info-panel {
+      position: absolute;
+      top: 76px; right: 24px;
+      width: 410px;
+      max-height: calc(100vh - 110px);
+      background: var(--panel-bg);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 22px;
+      box-shadow: var(--shadow);
+      z-index: 1000;
+      overflow-y: auto;
+    }
+
+    .info-panel h2 { font-size: 1.3rem; margin-bottom: 2px; color: var(--text-main); }
+    .info-panel .subtitle { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 16px; font-weight: 600; }
+
+    .haplo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+    .haplo-card { background: #ffffff; border: 1px solid var(--border-color); border-radius: 8px; padding: 10px 12px; }
+    .haplo-card .label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted); display: block; }
+    .haplo-card .val { font-size: 0.92rem; font-weight: 700; color: var(--accent); margin-top: 2px; }
+
+    .history-section h4 { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 6px; }
+    .history-section p { font-size: 0.88rem; line-height: 1.55; color: #334155; }
+
+    .leaflet-tooltip.genomic-tooltip {
+      background: rgba(15, 23, 42, 0.92);
+      border: none; color: #ffffff;
+      font-family: 'Inter', sans-serif; font-size: 0.85rem;
+      border-radius: 6px; padding: 6px 10px; font-weight: 600;
+    }
+  </style>
 </head>
-<body class="bg-slate-100 text-slate-800 h-screen flex flex-col overflow-hidden relative">
+<body>
 
-<!-- Header -->
-<header class="bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between z-10 shadow-sm">
-  <div class="flex items-center space-x-3">
-    <div class="h-3 w-3 rounded-full bg-red-600"></div>
-    <div class="h-3 w-3 rounded-full bg-purple-600"></div>
-    <h1 class="text-lg font-bold tracking-wide text-amber-700">Genetic Differentiation & Regional Phenotypes</h1>
-  </div>
-  <div class="flex items-center gap-4 text-xs font-semibold text-slate-700">
-    <span class="flex items-center gap-1.5"><span class="w-3 h-3 bg-red-700 border border-red-500 rounded-sm inline-block"></span> Western Empire</span>
-    <span class="flex items-center gap-1.5"><span class="w-3 h-3 bg-purple-700 border border-purple-500 rounded-sm inline-block"></span> Eastern Empire</span>
-    <span class="flex items-center gap-1.5"><span class="w-3 h-3 bg-slate-50 border border-emerald-500 rounded-sm inline-block"></span> Surrounding Lands</span>
-  </div>
-</header>
-
-<!-- Main Viewport -->
-<div class="flex-1 flex relative overflow-hidden">
-  <!-- Control Panel Sidebar -->
-  <aside class="w-80 bg-white/95 border-r border-slate-200 p-4 flex flex-col justify-between z-10 backdrop-blur-md shadow-md overflow-y-auto">
-    <div class="space-y-4">
-      <div>
-        <h2 class="text-xs uppercase font-bold text-amber-700 tracking-wider mb-1">Phenotypic Inspector</h2>
-        <p class="text-xs text-slate-600 leading-relaxed">
-          Hover over any territory to view quick phenotypic data, or click a country to open its detailed phenotype profile page.
-        </p>
-      </div>
-
-      <!-- Dynamic Information Panel -->
-      <div id="info-card" class="bg-slate-50 border border-slate-200 rounded p-3 text-xs space-y-2 shadow-inner">
-        <span class="text-amber-700 font-semibold block">State Inspector</span>
-        <p class="text-slate-500">Hover over a country to inspect regional phenotypes and genetic haplogroups.</p>
-      </div>
-
-      <!-- Jump Controls -->
-      <div class="space-y-2">
-        <h3 class="text-[11px] uppercase font-bold text-slate-400 tracking-wider">Quick Center</h3>
-        <div class="grid grid-cols-1 gap-1.5 text-xs">
-          <button onclick="zoomToEmpire('west')" class="px-3 py-2 bg-red-50 hover:bg-red-100 border border-red-200 rounded text-left text-red-900 font-medium transition shadow-sm">
-            🏛️ Western Empire Focus
-          </button>
-          <button onclick="zoomToEmpire('east')" class="px-3 py-2 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded text-left text-purple-900 font-medium transition shadow-sm">
-            🏺 Eastern Empire Focus
-          </button>
-        </div>
-      </div>
+  <header>
+    <div class="brand">
+      <div class="brand-logo"></div>
+      <h1>Genomic <span>Reality</span></h1>
     </div>
+  </header>
 
-    <button onclick="resetView()" class="w-full mt-4 py-2 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded text-xs transition shadow">
-      Reset Map Scope
-    </button>
-  </aside>
+  <div id="map"></div>
 
-  <!-- Leaflet Canvas -->
-  <main id="map" class="flex-1 w-full h-full relative z-0"></main>
-
-  <!-- Detailed Phenotype Full-Page Overlay / Drawer Layer -->
-  <div id="phenotype-page" class="hidden absolute inset-y-0 right-0 w-full md:w-1/2 bg-white z-50 shadow-2xl border-l border-slate-300 flex flex-col transition-all duration-300 transform translate-x-0 overflow-y-auto">
-    <!-- Header with exit button -->
-    <div class="p-6 bg-slate-900 text-white flex justify-between items-center sticky top-0 z-10 border-b border-slate-800 shadow-md">
-      <div>
-        <span class="text-amber-400 text-xs font-bold uppercase tracking-widest">Regional Profile Page</span>
-        <h2 id="page-country-title" class="text-2xl font-black">Country Name</h2>
-      </div>
-      <button onclick="closePhenotypePage()" aria-label="Close Profile Page" class="p-2.5 bg-slate-800 hover:bg-amber-600 rounded-full text-slate-300 hover:text-white transition flex items-center justify-center font-bold text-lg shadow">
-        ✕
-      </button>
-    </div>
-
-    <!-- Content Details -->
-    <div class="p-6 space-y-6 bg-white flex-1">
-      <!-- Phenotype Analysis -->
-      <div>
-        <h3 class="text-sm uppercase font-bold text-amber-700 tracking-wider mb-2 border-b border-amber-200 pb-1">Predominant Physical Phenotypes</h3>
-        <div id="page-phenotypes-list" class="grid grid-cols-1 gap-2"></div>
-      </div>
-
-      <!-- Lineage breakdown -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div class="bg-slate-50 border border-slate-200 p-4 rounded-lg shadow-sm">
-          <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">🧬 Y-DNA (Paternal Haplogroups)</h4>
-          <p id="page-ydna" class="text-sm text-slate-600 leading-relaxed"></p>
-        </div>
-        <div class="bg-slate-50 border border-slate-200 p-4 rounded-lg shadow-sm">
-          <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">🧬 mtDNA (Maternal Haplogroups)</h4>
-          <p id="page-mtdna" class="text-sm text-slate-600 leading-relaxed"></p>
-        </div>
-      </div>
-
-      <!-- Morphological Context -->
-      <div class="bg-amber-50 border border-amber-200 p-4 rounded-lg shadow-sm">
-        <h4 class="text-xs font-bold text-amber-900 uppercase tracking-wider mb-1">Morphological Context & Physical Anthropology</h4>
-        <p id="page-description" class="text-xs text-amber-800 leading-relaxed"></p>
-      </div>
+  <div class="info-panel">
+    <div id="panelContent">
+      <h2>Global 195-Nation Map</h2>
+      <p style="color: var(--text-muted); font-size: 0.9rem; font-style: italic; margin-top: 8px;">
+        Hover or click over any sovereign state to inspect its border-specific genotypic breakdown and historical archaeo-genetics.
+      </p>
     </div>
   </div>
-</div>
 
-<script>
-// 1. Map Coordinates Bounds
-const bounds = L.latLngBounds(L.latLng(12.0, -18.0), L.latLng(62.0, 55.0));
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 
-// 2. Initialize Leaflet Map
-const map = L.map('map', {
-  maxBounds: bounds,
-  maxBoundsViscosity: 0.9,
-  minZoom: 3,
-  maxZoom: 9,
-  zoomControl: false
-}).fitBounds(bounds);
+  <script>
+    // Embedded 195-Country Genomic Database
+    const genomicDatabase = {
+      "AFG": { country: "Afghanistan", ethnicity: "Pashtun, Tajik, Hazara, Uzbek", yDna: "R1a-Z93 (~30%), C2 (~12%), L-M20, J2", mtDna: "H, U7, M3, R0", color: "#d97706", history: "Crossroads of Central and South Asia. Border-defined history shaped by Bactrian, Kushan, and Silk Road migrations." },
+      "ALB": { country: "Albania", ethnicity: "Albanian (Gheg / Tosk)", yDna: "E-V13 (~30%), J2b2-L283 (~20%), R1b-L23", mtDna: "H, J, T, U5", color: "#dc2626", history: "High genetic continuity linked to ancient Balkan Illyrian populations within modern territorial borders." },
+      "DZA": { country: "Algeria", ethnicity: "Berber / Arab-Berber", yDna: "E-M81 (E1b1b1b ~65%), J1-M267 (~20%)", mtDna: "H, U6, L3, M1", color: "#059669", history: "Strong persistence of ancient Iberomaurusian and Numidian lineages across Maghrebi borders." },
+      "AND": { country: "Andorra", ethnicity: "Andorran / Catalan Pyrenean", yDna: "R1b-DF27 (~60%), I2a, E-M35", mtDna: "H1, H3, V, U5", color: "#2563eb", history: "Pyrenean mountain refuge preserving deep Iberian Atlantic Bronze Age genetic continuity." },
+      "AGO": { country: "Angola", ethnicity: "Ovimbundu, Ambundu, Bakongo", yDna: "E-M2 (E1b1a ~80%), A1b, B2", mtDna: "L1c, L2a, L3e", color: "#16a34a", history: "Core territory of early Bantu migrations merging with indigenous Khoisan hunter-gatherer substrate." },
+      "ATG": { country: "Antigua and Barbuda", ethnicity: "Afro-Caribbean / Kalinago heritage", yDna: "E-M2 (~85%), R1b, I2", mtDna: "L2a, L3e, L1b", color: "#0284c7", history: "Colonial plantation history overlays indigenous pre-Columbian Saladoid/Carib populations." },
+      "ARG": { country: "Argentina", ethnicity: "Euro-Argentine / Amerindian / Mestizo", yDna: "R1b (~40%), Q-M3 (~18%), I2, J2", mtDna: "A2, B2, C1, D1 (~50% maternal indigenous)", color: "#7c3aed", history: "High European paternal immigration (Spanish/Italian) blending with ancestral Mapuche and Diaguita maternal lines." },
+      "ARM": { country: "Armenia", ethnicity: "Armenian / Highland Caucasian", yDna: "R1b-L23 (~30%), J2-M172 (~22%), G2a", mtDna: "H, U, J, K, T2", color: "#7c3aed", history: "Archaeo-genetics confirm modern Armenians match Bronze Age Kura-Araxes and Urartian remains with minimal admixture." },
+      "AUS": { country: "Australia", ethnicity: "Anglo-Celtic / Aboriginal Australian", yDna: "R1b (~60%), C-M130, K2b, I1", mtDna: "H, U, P, S, N, M", color: "#2563eb", history: "Synthesis of deep 50,000-year First Nations genetic isolation with post-1788 British Isles and global migration." },
+      "AUT": { country: "Austria", ethnicity: "Austro-Bavarian / Alpine Germanic", yDna: "R1b (~32%), R1a (~19%), I2a, E-V13", mtDna: "H, U5, T2, J", color: "#dc2626", history: "Alpine crossroads shaped by Celtic Hallstatt civilization, Roman Noricum, and Bavarian settlement." },
+      "AZE": { country: "Azerbaijan", ethnicity: "Azerbaijani / Caucasian Turkic", yDna: "J2-M172 (~30%), G2a, R1b, J1, G1", mtDna: "U7, H, J, T", color: "#0284c7", history: "Caucasian Albanian and Iranian substrate enriched by medieval Oghuz Seljuk migrations." },
+      "BHS": { country: "Bahamas", ethnicity: "Afro-Bahamian", yDna: "E-M2 (~85%), R1b, J2", mtDna: "L3e, L2a, L1b", color: "#0284c7", history: "Lucayan Arawak roots replaced following transatlantic slave trade and Loyalist migrations." },
+      "BHR": { country: "Bahrain", ethnicity: "Baharna / Arab Gulf", yDna: "J1-M267 (~48%), J2 (~15%), E-M35", mtDna: "R0a, HV, U7, L3", color: "#dc2626", history: "Heart of the ancient maritime Dilmun civilization linking Mesopotamia and the Indus Valley." },
+      "BGD": { country: "Bangladesh", ethnicity: "Bengali", yDna: "R1a-Y93 (~42%), O-M175 (~18%), H-M69 (~15%)", mtDna: "M, U2, R", color: "#059669", history: "Semiautochthonous South Asian ancestral component (AASI) blended with Indo-Aryan and Austroasiatic lineages." },
+      "BRB": { country: "Barbados", ethnicity: "Afro-Bajan", yDna: "E-M2 (~90%), R1b", mtDna: "L2a, L1b, L3e", color: "#0284c7", history: "Sugar plantation history led to predominant West African genetic roots alongside minor Irish/British input." },
+      "BLR": { country: "Belarus", ethnicity: "Belarusian / East Slavic", yDna: "R1a-M458 (~50%), I2a-P37 (~18%), N1c", mtDna: "H, U5a, T2, J", color: "#16a34a", history: "High Slavic genetic continuity within the Dnieper and Pripyat basin river systems." },
+      "BEL": { country: "Belgium", ethnicity: "Flemish / Walloon", yDna: "R1b-U106 / R1b-P312 (~60%), I1, E-V13", mtDna: "H1, H3, U5, J", color: "#d97706", history: "Crossroads between Germanic and Celtic tribes recorded in Julius Caesar's Gallic Wars." },
+      "BLZ": { country: "Belize", ethnicity: "Mestizo, Maya, Garifuna, Creole", yDna: "Q-M3, E-M2, R1b", mtDna: "A2, B2, L2a, L3e", color: "#0284c7", history: "Core Mayan civilization territory blended with Afro-Indigenous Garifuna and European lineages." },
+      "BEN": { country: "Benin", ethnicity: "Fon, Adja, Yoruba", yDna: "E-M2 (E1b1a ~90%)", mtDna: "L1b, L2a, L3e", color: "#16a34a", history: "Heartland of the Dahomey Kingdom; pivotal hub in West African population history." },
+      "BTN": { country: "Bhutan", ethnicity: "Ngalop, Sharchop, Lhotshampa", yDna: "O-M117 / O2a (~65%), D-M174 (~15%), R1a", mtDna: "M9, M7, C4", color: "#d97706", history: "Himalayan refuge ecology preserving ancient Tibeto-Burman lineages alongside Paleolithic Haplogroup D." },
+      "BOL": { country: "Bolivia", ethnicity: "Quechua, Aymara, Mestizo", yDna: "Q-M3 (>75% indigenous), R1b, E-M35", mtDna: "A2, B2, C1, D1 (~85%)", color: "#c026d3", history: "Highland Tiwanaku and Inca empire centers maintaining world-leading indigenous genetic preservation." },
+      "BIH": { country: "Bosnia and Herzegovina", ethnicity: "Bosniak, Serb, Croat", yDna: "I2a-Y3120 (~50%), E-V13 (~14%), R1a, J2b", mtDna: "H, U5, K, J", color: "#0284c7", history: "World peak frequency of Y-DNA I2a, reflecting post-LGM Dinaric refuge expansion." },
+      "BWA": { country: "Botswana", ethnicity: "Tswana, San / Khoisan", yDna: "E-M2 (~60%), A1b-V161 (~20%), B2", mtDna: "L0d (~40%), L2, L3", color: "#0284c7", history: "Contains the Kalahari basin, home to the deepest basal human maternal lineages (mtDNA L0d)." },
+      "BRA": { country: "Brazil", ethnicity: "Pardo, White, Afro-Brazilian, Indigenous", yDna: "R1b (~45%), E-M2 (~15%), Q-M3 (~7%), J2", mtDna: "L (~33%), A2/B2/C1/D1 (~33%), H/U (~34%)", color: "#16a34a", history: "Complex tri-hybrid population synthesis (Portuguese paternal, African maternal, and Amazonian Amerindian)." },
+      "BRN": { country: "Brunei", ethnicity: "Malay, Indigenous Bornean", yDna: "O1b1, O2, C2", mtDna: "M7, F1a, B4", color: "#d97706", history: "Austronesian expansion core in Maritime Southeast Asia." },
+      "BGR": { country: "Bulgaria", ethnicity: "Bulgarian / Thracian-Slavic", yDna: "E-V13 (~20%), I2a (~20%), R1a (~17%), J2, R1b", mtDna: "H, U5, J, T", color: "#16a34a", history: "Thracian, Roman, and Slavic convergence zone along the Danube and Balkan mountains." },
+      "BFA": { country: "Burkina Faso", ethnicity: "Mossi, Gurunsi, Fulani", yDna: "E-M2 (~80%), R1b-V88 (Fulani ~25%)", mtDna: "L1b, L2a, L3f", color: "#16a34a", history: "West African Savanna crossroads featuring trans-Saharan paternal signatures." },
+      "BDI": { country: "Burundi", ethnicity: "Hutu, Tutsi, Twa", yDna: "E-M2 (~85%), B2 (Twa hunter-gatherer)", mtDna: "L2a, L0a, L3e", color: "#16a34a", history: "Great Lakes region population stratification shaped by Bantu farming and pastoralist migrations." },
+      "CPV": { country: "Cabo Verde", ethnicity: "Crioulo (Euro-African)", yDna: "R1b (~45%), E-M2 (~40%)", mtDna: "L1b, L2a, L3e (>85%)", color: "#0284c7", history: "Island founder effect with predominantly Portuguese paternal and West African maternal lineages." },
+      "KHM": { country: "Cambodia", ethnicity: "Khmer", yDna: "O1b1a1a-M95 (~70%), O2", mtDna: "F1a, M7, B5a", color: "#dc2626", history: "Core Austroasiatic genomic continuity linked directly to the ancient Khmer Empire of Angkor." },
+      "CMR": { country: "Cameroon", ethnicity: "Bamileke, Fang, Fulani, Bakaka", yDna: "E-M2 (~80%), R1b-V88 (~15% northern groups), A1b", mtDna: "L1c, L2a, L3e", color: "#16a34a", history: "Accepted linguistic and genetic cradle of the prehistoric Bantu expansion." },
+      "CAN": { country: "Canada", ethnicity: "Euro-Canadian, First Nations, Inuit, Asian", yDna: "R1b (~48%), Q-M3 / Q-MEH2 (Indigenous), I1, O2", mtDna: "H, U5, A2, B2, C1, D1", color: "#dc2626", history: "Indigenous First Nations and Inuit lineages merged with post-17th century European and global demographic shifts." },
+      "CAF": { country: "Central African Republic", ethnicity: "Baya, Banda, Mandjia, Aka Pygmy", yDna: "E-M2 (~75%), B2-M182 (Aka ~35%)", mtDna: "L1c (Aka ~70%), L2a, L3e", color: "#059669", history: "Transition zone between Central African rainforest hunter-gatherers and savanna agriculturalists." },
+      "TCD": { country: "Chad", ethnicity: "Sara, Arab, Toubou, Fulani", yDna: "E-M2 (~40%), R1b-V88 (~30%), J1", mtDna: "L3, L2a, M1, U6", color: "#0284c7", history: "Chadic-speaking hotspot for trans-Saharan Y-DNA R1b-V88 surrounding ancient Lake Chad." },
+      "CHL": { country: "Chile", ethnicity: "Mestizo, Euro-Chilean, Mapuche", yDna: "R1b (~42%), Q-M3 (~35%), I2, E-M35", mtDna: "C1b, D1, B2, A2 (>80% indigenous maternal)", color: "#dc2626", history: "High maternal Mapuche/Fuegian preservation coupled with colonial Spanish paternal input." },
+      "CHN": { country: "China", ethnicity: "Han Chinese, Zhuang, Uyghur, Hui, Tibetan", yDna: "O2-M122 (~50%), O1a, C2, N1, Q", mtDna: "D4, F, M7, B4, G", color: "#dc2626", history: "Neolithic Yellow River and Yangtze agricultural centers driving eastern Asian lineage expansions." },
+      "COL": { country: "Colombia", ethnicity: "Mestizo, Afro-Colombian, Indigenous", yDna: "R1b (~50%), Q-M3 (~20%), E-M2 (~10%)", mtDna: "A2 (~35%), B2 (~30%), C1, D1, L", color: "#d97706", history: "Chibcha/Muisca ancestral base heavily reshaped by Spanish colonization and transatlantic influx." },
+      "COM": { country: "Comoros", ethnicity: "Antalote, Cafre, Makoa, Oimatsaha", yDna: "E-M2 (~60%), O1b (~15%), J1 (~10%)", mtDna: "L2a, L3e, F1a, B4", color: "#16a34a", history: "Indian Ocean maritime trade hub blending African Bantu, Austronesian Malagasy, and Arab lineages." },
+      "COG": { country: "Congo (Republic of)", ethnicity: "Kongo, Teke, M'Bochi, Sangha", yDna: "E-M2 (~85%), B2 (Pygmy substrate)", mtDna: "L1c, L2a, L3e", color: "#16a34a", history: "Heart of the western Bantu expansion corridors and Congo Basin rainforest habitation." },
+      "COD": { country: "Congo (Democratic Republic of)", ethnicity: "Luba, Mongo, Kongo, Mangbetu, Mbuti", yDna: "E-M2 (~88%), B2 (Mbuti ~40%)", mtDna: "L1c1 (~50% Mbuti), L2a, L3e", color: "#0284c7", history: "Preserves ancient Central African hunter-gatherer lineages (Mbuti/BaTwa) alongside Bantu expansion." },
+      "CRI": { country: "Costa Rica", ethnicity: "Mestizo / Castizo", yDna: "R1b (~55%), Q-M3 (~15%), E-M35, J2", mtDna: "A2 (~50%), B2, C1, H", color: "#0284c7", history: "Central American Isthmus bridge blending Chibchan indigenous substrate with Spanish settlement." },
+      "CIV": { country: "Côte d'Ivoire", ethnicity: "Akan, Gur, Kru, Mande", yDna: "E-M2 (~92%)", mtDna: "L1b, L2a, L3e", color: "#d97706", history: "West African forest belt populated by Mande and Akan migrations." },
+      "HRV": { country: "Croatia", ethnicity: "Croat", yDna: "I2a-Y3120 (~38%), R1a (~22%), R1b (~15%), E-V13", mtDna: "H1, U5, J, T", color: "#dc2626", history: "Adriatic coast territory combining ancient Illyrian, Roman, and early medieval Slavic genetics." },
+      "CUB": { country: "Cuba", ethnicity: "Cuban (Euro, Afro, Mestizo)", yDna: "R1b (~50%), E-M2 (~20%), Q-M3 (~5%)", mtDna: "L2a/L3e (~38%), H (~35%), A2/C1 (Taíno ~20%)", color: "#dc2626", history: "Taíno indigenous substrate largely replaced by Spanish settlement and West African imports." },
+      "CYP": { country: "Cyprus", ethnicity: "Greek Cypriot, Turkish Cypriot", yDna: "J2a-M410 (~37%), E-V13 (~13%), G2a, R1b, J1", mtDna: "H, J, T, K", color: "#d97706", history: "Eastern Mediterranean island isolate demonstrating strong Neolithic farmer continuity." },
+      "CZE": { country: "Czechia", ethnicity: "Czech / West Slavic", yDna: "R1a-M458 (~33%), R1b-U106 (~28%), I1, E-V13", mtDna: "H, U5, J, T2", color: "#0284c7", history: "Bohemian Basin genetic junction between Germanic West and Slavic East." },
+      "DNK": { country: "Denmark", ethnicity: "Danish / Scandinavian", yDna: "I1-M253 (~38%), R1b-U106 (~32%), R1a-M417 (~15%)", mtDna: "H1, H3, U5a, J1c", color: "#dc2626", history: "Core homeland of the Nordic Bronze Age and Jutland Viking expansions." },
+      "DJI": { country: "Djibouti", ethnicity: "Somali (Issa), Afar", yDna: "E-V32 (E1b1b1a1a ~75%), T1a-M70 (~12%)", mtDna: "L3x, L3e, M1, N1a", color: "#0284c7", history: "Horn of Africa maritime gateway featuring Afroasiatic Cushitic lineage dominance." },
+      "DOM": { country: "Dominican Republic", ethnicity: "Afro-Dominican, Mulatto, Mestizo", yDna: "E-M2 (~40%), R1b (~38%), Q-M3 (~4%)", mtDna: "L2a/L3e (~60%), A2/C1 (Taíno ~15%), H", color: "#0284c7", history: "Hispaniola center of early Spanish colonization and transatlantic enslavement." },
+      "ECU": { country: "Ecuador", ethnicity: "Mestizo, Indigenous (Kichwa), Afro-Ecuadorian", yDna: "Q-M3 (~50%), R1b (~30%), E-M2", mtDna: "A2 (~45%), B2 (~35%), C1, D1", color: "#d97706", history: "Northern Andean Valdivia culture lineage preservation merging with Inca and Spanish inputs." },
+      "EGY": { country: "Egypt", ethnicity: "Egyptian", yDna: "E-M78 (E1b1b ~45%), J1-M267 (~20%), G2a, R1b", mtDna: "H, L3, T, U, M1", color: "#d97706", history: "Nile Valley continuity from Predynastic times; ancient Egyptian samples align with modern local profiles." },
+      "SLV": { country: "El Salvador", ethnicity: "Mestizo, Pipil / Maya", yDna: "Q-M3 (~35%), R1b (~40%), E-M35", mtDna: "A2 (~60%), B2, C1", color: "#0284c7", history: "Mesoamerican southern frontier preserving Pipil/Nawat indigenous maternal lines." },
+      "GNQ": { country: "Equatorial Guinea", ethnicity: "Fang, Bubi", yDna: "E-M2 (~90%)", mtDna: "L1b, L2a, L3e", color: "#16a34a", history: "Bioko Island geographic isolation preserves distinct Bubi Bantu genetic substrate." },
+      "ERI": { country: "Eritrea", ethnicity: "Tigrinya, Tigre, Afar", yDna: "E-V32 (~50%), T1a (~18%), J1 (~12%)", mtDna: "L3, M1, HV, R0a", color: "#16a34a", history: "Red Sea coastal kingdom of Aksum hearth; Afroasiatic linguistic and genomic bridge." },
+      "EST": { country: "Estonia", ethnicity: "Estonian / Finnic", yDna: "N1c-TAT (~34%), R1a-Z280 (~32%), I1 (~15%)", mtDna: "H, U5a, J, T", color: "#0284c7", history: "Finnic language speakers preserving ancient Siberian N1c influx alongside Baltic Hunter-Gatherers." },
+      "SWZ": { country: "Eswatini", ethnicity: "Swazi", yDna: "E-M2 (~85%), B2", mtDna: "L2a, L0a, L3e", color: "#dc2626", history: "Southeast African Nguni migration corridor and royal clan genetic continuity." },
+      "ETH": { country: "Ethiopia", ethnicity: "Oromo, Amhara, Tigray, Somalis", yDna: "E-V32 (~40%), J1 (~15%), T1a (~10%), A3b2", mtDna: "L3 (~40%), M1 (~15%), R0a, HV", color: "#16a34a", history: "Human cradle featuring deep basal human lineages alongside ancient Back-to-Africa Eurasian gene flow." },
+      "FJI": { country: "Fiji", ethnicity: "iTaukei (Melanesian/Polynesian), Indo-Fijian", yDna: "C1b2, C-M130, R1a (Indo-Fijian)", mtDna: "B4a1a1a (Lapita motif), M28, M3", color: "#0284c7", history: "Pacific Lapita pottery expansion boundary where Melanesian and Polynesian genetics synthesized." },
+      "FIN": { country: "Finland", ethnicity: "Finnish", yDna: "N1c-TAT (~60%), I1-M253 (~28%), R1a", mtDna: "H (~40%), U5b (~20%), W, V", color: "#0284c7", history: "Extreme genetic bottleneck island effect with high Siberian Y-DNA N1c frequencies." },
+      "FRA": { country: "France", ethnicity: "French (Gallic / Basque / Frankish)", yDna: "R1b-P312 (~60%), I1, E-V13, J2", mtDna: "H1, H3, U5, J, T", color: "#2563eb", history: "Synthesis of Gaulish Celts, Aquitanians/Basques, and Frankish Germanic lineages." },
+      "GAB": { country: "Gabon", ethnicity: "Fang, Punu, Nzebi", yDna: "E-M2 (~88%), B2", mtDna: "L1c, L2a, L3e", color: "#16a34a", history: "Atlantic equatorial forest refuge during early Bantu agricultural expansions." },
+      "GMB": { country: "Gambia", ethnicity: "Mandinka, Fula, Wolof", yDna: "E-M2 (~85%), R1b-V88 (~8%)", mtDna: "L1b, L2a, L3e", color: "#0284c7", history: "Gambia River valley core of the historic Mali Empire." },
+      "GEO": { country: "Georgia", ethnicity: "Georgian (Kartvelian)", yDna: "G2a-P15 (~35%), J2a (~30%), L1b, R1b", mtDna: "H, U1/U7, K, J", color: "#dc2626", history: "Highest global preservation of Caucasus Hunter-Gatherer (CHG) Y-DNA Haplogroup G2a." },
+      "DEU": { country: "Germany", ethnicity: "Germanic / Central European", yDna: "R1b-U106 (~45%), I1-M253 (~16%), R1a", mtDna: "H1, H3, U5a, J1c", color: "#2563eb", history: "Formed by Corded Ware, Bell Beaker expansions (R1b-U106), and indigenous Western Hunter-Gatherers." },
+      "GHA": { country: "Ghana", ethnicity: "Akan, Ewe, Mole-Dagbon", yDna: "E-M2 (E1b1a ~90%)", mtDna: "L1b, L2a, L3e", color: "#16a34a", history: "Ashanti Empire core; major population center of West African coastal forestry groups." },
+      "GRC": { country: "Greece", ethnicity: "Aegean / Peloponnesian", yDna: "E-V13 (~21%), J2a-M410 (~18%), R1b, I2a", mtDna: "H, J, T, X", color: "#2563eb", history: "Continuity with ancient Mycenaean and Minoan samples rooted in Early European Farmers (EEF)." },
+      "GRD": { country: "Grenada", ethnicity: "Afro-Grenadian", yDna: "E-M2 (~88%), R1b", mtDna: "L2a, L3e, L1b", color: "#16a34a", history: "Windward island historic transition from Carib control to sugarcane plantation workforce." },
+      "GTM": { country: "Guatemala", ethnicity: "Maya (K'iche', Q'eqchi'), Mestizo", yDna: "Q-M3 (~60%), R1b (~25%)", mtDna: "A2 (~55%), B2 (~30%), C1, D1", color: "#0284c7", history: "Heartland of the Maya civilization; extremely high indigenous maternal lineage survival." },
+      "GIN": { country: "Guinea", ethnicity: "Fulani, Mandinka, Susu", yDna: "E-M2 (~82%), R1b-V88 (Fulani ~18%)", mtDna: "L1b, L2a, L3b", color: "#16a34a", history: "Fouta Djallon highlands serving as a historical refuge and pastoralist core." },
+      "GNB": { country: "Guinea-Bissau", ethnicity: "Balanta, Fula, Mandinka", yDna: "E-M2 (~85%)", mtDna: "L1b, L2a, L3e", color: "#16a34a", history: "Upper Guinea coast preserving indigenous Balanta genetic isolate structures." },
+      "GUY": { country: "Guyana", ethnicity: "Indo-Guyanese, Afro-Guyanese, Indigenous", yDna: "R1a (~30%), E-M2 (~30%), Q-M3 (~10%), R1b", mtDna: "M3, L2a, A2, B2", color: "#16a34a", history: "Guiana Shield region shaping South Asian indentured labor and Carib/Arawak interactions." },
+      "HTI": { country: "Haiti", ethnicity: "Afro-Haitian", yDna: "E-M2 (E1b1a ~92%), R1b (~4%)", mtDna: "L2a, L3e, L1b (>90%)", color: "#0284c7", history: "First independent Black republic; genetic pool reflects direct West African slave trade origins." },
+      "HND": { country: "Honduras", ethnicity: "Mestizo, Lenca, Garifuna, Miskito", yDna: "Q-M3 (~40%), R1b (~35%), E-M2", mtDna: "A2, B2, C1, L3e", color: "#0284c7", history: "Intersection of Mesoamerican Lenca/Maya and Isthmo-Colombian indigenous spheres." },
+      "HUN": { country: "Hungary", ethnicity: "Hungarian (Magyar)", yDna: "R1a-Z280 (~30%), R1b (~25%), I2a (~18%), E-V13", mtDna: "H, U5, T2, J", color: "#16a34a", history: "Carpathian Basin population assimilating Uralic Magyar conquerors into local Slavic-Avar base." },
+      "ISL": { country: "Iceland", ethnicity: "Icelandic", yDna: "R1b-L21 (~42%), I1-M253 (~33%), R1a", mtDna: "J1c, T2 (~62% Gaelic Irish founder females)", color: "#0284c7", history: "Norse Viking founder males combined with enslaved Gaelic Irish founder females." },
+      "IND": { country: "India", ethnicity: "Indo-Aryan, Dravidian, Austroasiatic, Tibeto-Burman", yDna: "R1a-Z93 (~30%), H-M69 (~20%), L-M20, J2, R2", mtDna: "M lineages (~60%), U2, R6", color: "#d97706", history: "Ancestral South Indian (AASI) base merged with Zagros farmers and Steppe pastoralists (R1a)." },
+      "IDN": { country: "Indonesia", ethnicity: "Javanese, Sundanese, Malay, Papuan", yDna: "O1b1, O2, C1b (Papuan eastern islands), M", mtDna: "M7, B4, F1a, P, Q", color: "#dc2626", history: "Austronesian seafaring farmers expanding over indigenous Sundaland hunter-gatherer substrate." },
+      "IRN": { country: "Iran", ethnicity: "Persian, Azeri, Kurd, Luri, Baloch", yDna: "J2-M172 (~23%), R1a-Z93 (~18%), G2a, E-M35", mtDna: "U7, HV, J1, T2", color: "#059669", history: "Zagros mountain Neolithic farm hearth; Silk Road junction with high internal diversity." },
+      "IRQ": { country: "Iraq", ethnicity: "Mesopotamian Arab, Kurd, Assyrian, Turkmen", yDna: "J1-M267 (~40%), J2-M172 (~20%), E-M35, R1b", mtDna: "J1, T, HV, U7", color: "#0f766e", history: "Fertile Crescent cradle (Sumer, Akkad, Babylon); genetic continuity along Tigris-Euphrates." },
+      "IRL": { country: "Ireland", ethnicity: "Irish / Gaelic", yDna: "R1b-M269 / L21 (~81% peak in west), I2a", mtDna: "H1, H3, U5b, J1c", color: "#16a34a", history: "Western Atlantic edge displaying world-highest concentration of Y-DNA R1b-L21 lineage." },
+      "ISR": { country: "Israel", ethnicity: "Jewish (Ashkenazi, Mizrahi, Sephardi), Arab", yDna: "J1-M267 (~38%), J2-M172 (~22%), E-M123", mtDna: "K1a1b1a, N1b, HV, T2, H", color: "#0284c7", history: "Bronze Age Canaanite continuity preserved alongside Diaspora founder mitochondrial markers." },
+      "ITA": { country: "Italy", ethnicity: "Italian (Etruscan, Latin, Italica, Greek)", yDna: "R1b-U152 (~40% north), J2a, E-V13, G2a, I2a", mtDna: "H, J, T2, U5, X", color: "#16a34a", history: "North-South genetic gradient reflecting Italic/Celtic north and Imperial/Magna Graecia south." },
+      "JAM": { country: "Jamaica", ethnicity: "Afro-Jamaica", yDna: "E-M2 (~80%), R1b (~10%)", mtDna: "L2a, L1b, L3e (>85%)", color: "#16a34a", history: "Coromantee (Akan) and West African heritage forged through British plantation history." },
+      "JPN": { country: "Japan", ethnicity: "Yamato / Ainu / Ryukyuan", yDna: "D1a2-M55 (~35%), O1b2 (~32%), O2 (~20%)", mtDna: "M7a, N9a, D4, G1a", color: "#dc2626", history: "Dual-structure model: Paleolithic Jōmon hunter-gatherers (D1a2) merged with Yayoi rice farmers (O1b2)." },
+      "JOR": { country: "Jordan", ethnicity: "Jordanian / Bedouin", yDna: "J1-M267 (~55%), E-M35 (~18%), J2", mtDna: "R0a, J1, T, U7", color: "#059669", history: "Nabataean and Levant desert corridor maintaining ancient Nabataean genetic signatures." },
+      "KAZ": { country: "Kazakhstan", ethnicity: "Kazakh / Kipchak Steppe", yDna: "C2-M217 (~42%), G1a (~12%), R1a-Z93", mtDna: "D4, C4, G2a, H, U5", color: "#0284c7", history: "Medieval Golden Horde hearth synthesizing East Asian pastoralists with Western Steppe Herders." },
+      "KEN": { country: "Kenya", ethnicity: "Kikuyu, Luo, Kalenjin, Kamba, Maasai", yDna: "E-M2 (~60%), E-M35 (Nilotic/Cushitic ~25%), A3b2", mtDna: "L2a, L3x, L0a, M1", color: "#16a34a", history: "Rift Valley crossroads where Bantu, Nilotic, and Cushitic expansions converged." },
+      "KIR": { country: "Kiribati", ethnicity: "I-Kiribati (Micronesian)", yDna: "C1b2a, O3", mtDna: "B4a1a1a (Polynesian Motif)", color: "#0284c7", history: "Remote Oceania island navigation settlement carrying Lapita maternal motif." },
+      "PRK": { country: "Korea (North)", ethnicity: "Korean", yDna: "O2-M122 (~40%), O1b2-P49 (~35%), C2", mtDna: "D4, A, G, V", color: "#dc2626", history: "Peninsular isolation maintaining homogenous Northeast Asian agriculturalist lineage profile." },
+      "KOR": { country: "Korea (South)", ethnicity: "Korean", yDna: "O2-M122 (~40%), O1b2-P49 (~35%), C2", mtDna: "D4, A, G, V", color: "#0284c7", history: "Peninsular isolation maintaining homogenous Northeast Asian agriculturalist lineage profile." },
+      "KWT": { country: "Kuwait", ethnicity: "Kuwaiti / Arab", yDna: "J1-M267 (~55%), E-M35, J2", mtDna: "R0a, J1, T, HV", color: "#059669", history: "Persian Gulf trade node with deep Arabian Peninsula paternal lineage roots." },
+      "KGZ": { country: "Kyrgyzstan", ethnicity: "Kyrgyz", yDna: "R1a-Z93 (~63% peak), C2-M217 (~18%), O2", mtDna: "D4, C4, H, G2a", color: "#dc2626", history: "Yenisei Kyrgyz migration to Tien Shan; highest Central Asian frequency of R1a-Z93." },
+      "LAO": { country: "Laos", ethnicity: "Lao, Khmou, Hmong", yDna: "O1b1a1a (~55%), O2 (~25%), C2", mtDna: "F1a, B5a, M7", color: "#dc2626", history: "Mekong river corridor populated by indigenous Austroasiatic and incoming Tai-Kadai groups." },
+      "LVA": { country: "Latvia", ethnicity: "Latvian / Baltic", yDna: "N1c-TAT (~40%), R1a-Z280 (~40%), I2a, R1b", mtDna: "H, U5a, J, T", color: "#dc2626", history: "Preserves rare Baltic Hunter-Gatherer genetic components with high N1c and R1a equilibrium." },
+      "LBN": { country: "Lebanon", ethnicity: "Lebanese (Phoenician substrate)", yDna: "J2a-M410 (~26%), J1 (~20%), R1b, E-M35", mtDna: "H, J, T2, K, R0", color: "#dc2626", history: "Ancient Phoenician maritime city-states; DNA tests confirm 90%+ continuity with Bronze Age Sidon." },
+      "LSO": { country: "Lesotho", ethnicity: "Basotho", yDna: "E-M2 (~80%), B2, A1b", mtDna: "L2a, L0d, L3e", color: "#0284c7", history: "Drakensberg mountain sanctuary merging Basotho Bantu clans with San substrate." },
+      "LBR": { country: "Liberia", ethnicity: "Kpelle, Bassa, Grebo", yDna: "E-M2 (E1b1a ~92%)", mtDna: "L1b, L2a, L3e", color: "#0284c7", history: "West African Pepper Coast rainforest sanctuary; resettlement of Afro-American repatriates." },
+      "LBY": { country: "Libya", ethnicity: "Arab-Berber", yDna: "J1-M267 (~40%), E-M81 (~35%), E-M78", mtDna: "H, U6, L3, M1", color: "#16a34a", history: "Garamantian Saharan empire base; gateway between Maghreb and Nile Valley." },
+      "LIE": { country: "Liechtenstein", ethnicity: "Alemannic German", yDna: "R1b-U106 (~50%), I1, R1a", mtDna: "H, U5, J", color: "#0284c7", history: "Rhine valley Alpine Alemannic Germanic genetic continuity." },
+      "LTU": { country: "Lithuania", ethnicity: "Lithuanian / Baltic", yDna: "N1c-TAT (~42%), R1a-Z280 (~38%), I2a, R1b", mtDna: "H, U5a, J, T", color: "#0284c7", history: "Retains the most archaic Indo-European linguistic and genetic markers in Western Eurasia." },
+      "LUX": { country: "Luxembourg", ethnicity: "Luxembourgish", yDna: "R1b-U106 / P312 (~60%), I1, E-V13", mtDna: "H1, H3, U5, J", color: "#0284c7", history: "Moselle valley Celtic Treveri and Frankish Germanic historical synthesis." },
+      "MDG": { country: "Madagascar", ethnicity: "Malagasy (Merina, Betsimisaraka)", yDna: "E-M2 (~50%), O1b1a / O2 (~45%)", mtDna: "B4a1a1a (Austronesian ~50%), L2a/L3e (~50%)", color: "#dc2626", history: "Unique 50/50 dual genomic setup: Borneo Austronesian seafarers mixed with East African Bantu." },
+      "MWI": { country: "Malawi", ethnicity: "Chewa, Tumbuka, Yao", yDna: "E-M2 (~85%), B2", mtDna: "L2a, L0a, L3e", color: "#dc2626", history: "Lake Malawi corridor of Maravi Empire and Bantu migration channels." },
+      "MYS": { country: "Malaysia", ethnicity: "Malay, Chinese, Indian, Orang Asli", yDna: "O1b1 (~35%), O2 (~30%), H (Indo-Malay), C1b", mtDna: "M7, F1a, B4, N", color: "#dc2626", history: "Peninsular Malacca Straits trade nexus over Semang (Negrito) indigenous hunter-gatherers." },
+      "MDV": { country: "Maldives", ethnicity: "Maldivian (Dhivehi)", yDna: "R1a (~30%), H (~18%), L, J2", mtDna: "M3, M5, R", color: "#0284c7", history: "Atoll maritime stopover populated from South India and Sri Lanka with Arab trade input." },
+      "MLI": { country: "Mali", ethnicity: "Bambara, Fulani, Songhai, Tuareg", yDna: "E-M2 (~70%), R1b-V88 (~12%), E-M81 (Tuareg)", mtDna: "L1b, L2a, L3b, U6", color: "#16a34a", history: "Heartland of Ghana, Mali, and Songhai empires along the Niger River curve." },
+      "MLT": { country: "Malta", ethnicity: "Maltese", yDna: "R1b-U152 (~32%), J2a (~20%), E-M35 (~15%), J1", mtDna: "H, J, T, K", color: "#dc2626", history: "Megalithic builders followed by Phoenician, Roman, and Siculo-Arabic island isolation." },
+      "MHL": { country: "Marshall Islands", ethnicity: "Marshallese", yDna: "C1b2a, O3", mtDna: "B4a1a1a", color: "#0284c7", history: "Micronesian voyagers carrying Lapita expansion maternal signatures." },
+      "MRT": { country: "Mauritania", ethnicity: "Moor (Haratin / Beidane), Fulani, Soninke", yDna: "E-M81 (~40%), E-M2 (~35%), J1-M267 (~15%)", mtDna: "L2a, L3b, U6, M1", color: "#16a34a", history: "Trans-Saharan trade nexus where Berber, Arab, and West African Mande lineages meet." },
+      "MUS": { country: "Mauritius", ethnicity: "Indo-Mauritian, Creole, Sino-Mauritian", yDna: "R1a (~35%), H (~15%), E-M2 (~15%), R1b", mtDna: "M, R, L2a, B4", color: "#d97706", history: "Uninhabited until colonial era; populated by Indian indentured workers and African labor." },
+      "MEX": { country: "Mexico", ethnicity: "Mestizo, Nahua, Maya, Zapotec, Euro-Mexican", yDna: "R1b (~35%), Q-M3 (~30%), E-M35, J2", mtDna: "A2 (~50%), B2 (~25%), C1 (~12%), D1", color: "#16a34a", history: "Mesoamerican civilization core (Aztec/Maya) with massive Native American maternal persistence." },
+      "FSM": { country: "Micronesia", ethnicity: "Chuukese, Pohnpeian, Yapese", yDna: "C1b2a, O-M175", mtDna: "B4a1a1a", color: "#0284c7", history: "Caroline Islands oceanic seafaring expansion lineage persistence." },
+      "MDA": { country: "Moldova", ethnicity: "Moldovan / Romanian", yDna: "I2a-Y3120 (~25%), R1a (~22%), R1b (~16%), E-V13", mtDna: "H, U5, J, T", color: "#0284c7", history: "Dacian base integrated into Roman Empire, subsequent Slavic and steppe nomads influx." },
+      "MCO": { country: "Monaco", ethnicity: "Monegasc / French / Ligurian", yDna: "R1b-U152, J2a, E-V13", mtDna: "H, V, J", color: "#dc2626", history: "Ligurian coastal sanctuary under Mediterranean maritime influences." },
+      "MNG": { country: "Mongolia", ethnicity: "Khalkha Mongol", yDna: "C2-M217 (~55% peak), N1c, Q, R1a-Z93", mtDna: "D4 (~30%), C4, G2a, F1b", color: "#dc2626", history: "Eurasian Steppe empire hearth (Xiongnu, Mongol Empire); world origin of Y-DNA C2 expansion." },
+      "MNE": { country: "Montenegro", ethnicity: "Montenegrin, Serb", yDna: "I2a-Y3120 (~30%), E-V13 (~27%), R1b, J2b", mtDna: "H, U5, K, J", color: "#0f766e", history: "Dinaric Alps refuge area preserving high frequencies of Paleo-Balkan Y-DNA E-V13." },
+      "MAR": { country: "Morocco", ethnicity: "Berber (Amazigh) / Arab", yDna: "E-M81 (E1b1b1b ~72% peak), J1-M267 (~15%)", mtDna: "U6 (~20%), H, L3, M1", color: "#dc2626", history: "Back-to-Africa Paleolithic Iberomaurusian heritage (Taforalt) with Amazigh continuity." },
+      "MOZ": { country: "Mozambique", ethnicity: "Makhuwa, Tsonga, Sena, Lomwe", yDna: "E-M2 (E1b1a ~88%), B2", mtDna: "L2a, L0a, L3e", color: "#16a34a", history: "East African Indian Ocean coast corridor of the historic Swahili coast and Bantu kingdoms." },
+      "MMR": { country: "Myanmar", ethnicity: "Bamar, Shan, Karen, Rakhine", yDna: "O2-M122 (~45%), O1b1 (~20%), C2, H", mtDna: "M7, F1a, B4, D4", color: "#d97706", history: "Tibeto-Burman migrations down the Irrawaddy River merging with Austroasiatic Mon substrate." },
+      "NAM": { country: "Namibia", ethnicity: "Ovambo, Nama, Herero, San", yDna: "E-M2 (~50%), A1b-V161 (San ~35%), B2", mtDna: "L0d (~50% Nama/San), L2a, L3e", color: "#d97706", history: "Kalahari and Namib deserts preserving Earth's oldest genetic split (San Y-DNA A1b & mtDNA L0d)." },
+      "NRU": { country: "Nauru", ethnicity: "Nauruan", yDna: "C1b2a, O-M175", mtDna: "B4a1a1a", color: "#d97706", history: "Isolated Pacific islander genetic bottleneck." },
+      "NPL": { country: "Nepal", ethnicity: "Khas/Chhetri, Newar, Tamang, Gurung", yDna: "R1a-Z93 (~30%), O2 (~25%), H, D-M174", mtDna: "M, A, D4, U2", color: "#dc2626", history: "Himalayan boundary zone where South Asian Indo-Aryan lineages meet Tibeto-Burman groups." },
+      "NLD": { country: "Netherlands", ethnicity: "Dutch / Frisian", yDna: "R1b-U106 (~50%), I1-M253 (~22%), R1a", mtDna: "H1, H3, U5, J1c", color: "#d97706", history: "Low Countries Frisian and Frankish Germanic lineages formed post-Last Glacial Maximum." },
+      "NZL": { country: "New Zealand", ethnicity: "Pākehā (Euro), Māori", yDna: "R1b (~50%), C1b2a1 (Māori ~12%), I1", mtDna: "B4a1a1a (Māori Polynesian Motif ~15%), H, U5", color: "#0284c7", history: "Final major landmass settled by humans (Polynesian Māori ~1300 CE), later European migration." },
+      "NIC": { country: "Nicaragua", ethnicity: "Mestizo, Miskito, Euro-Nicaraguan", yDna: "Q-M3 (~35%), R1b (~40%), E-M2", mtDna: "A2 (~55%), B2, C1, L", color: "#0284c7", history: "Central American Isthmus convergence of Macro-Chibchan and Mesoamerican cultures." },
+      "NER": { country: "Niger", ethnicity: "Hausa, Zarma, Tuareg, Fulani", yDna: "E-M2 (~55%), R1b-V88 (Hausa/Fulani ~30%), E-M81", mtDna: "L1b, L2a, L3b, U6", color: "#059669", history: "Saharan transition zone holding deep trans-Saharan Eurasian R1b-V88 migrations." },
+      "NGA": { country: "Nigeria", ethnicity: "Yoruba, Igbo, Hausa, Fulani", yDna: "E-M2 (E1b1a ~85%), R1b-V88 (Hausa ~40%)", mtDna: "L1b, L2a, L3e", color: "#16a34a", history: "Bantu expansion epicentre; Southern E-M2 coupled with Northern Saharan R1b-V88." },
+      "MKD": { country: "North Macedonia", ethnicity: "Macedonian, Albanian", yDna: "I2a (~24%), E-V13 (~22%), R1a (~15%), J2", mtDna: "H, U5, J, T", color: "#dc2626", history: "Ancient Paeonian and Macedonian territory synthesized with 6th-century Slavic migrations." },
+      "NOR": { country: "Norway", ethnicity: "Norwegian / Sámi", yDna: "I1-M253 (~36%), R1a-M417 (~28%), R1b-U106 (~22%)", mtDna: "H, U5b1 (Sámi motif), V", color: "#dc2626", history: "Scandinavian Viking core hearth; Arctic north populated by indigenous Uralic Sámi." },
+      "OMN": { country: "Oman", ethnicity: "Omani Arab", yDna: "J1-M267 (~50%), E-M35 (~15%), R0a, T", mtDna: "R0a (~25%), HV, U7, L3", color: "#d97706", history: "Ancient Magan maritime empire trading across the Arabian Sea to the Indus Valley." },
+      "PAK": { country: "Pakistan", ethnicity: "Punjabi, Pashtun, Sindhi, Saraiki, Baloch", yDna: "R1a-Z93 (~35%), L-M20 (~15%), J2, H-M69", mtDna: "M, U7, R0, HV", color: "#059669", history: "Indus Valley Civilization (Harappan) core hearth merged with Indo-Aryan R1a-Z93 influx." },
+      "PLW": { country: "Palau", ethnicity: "Palauan", yDna: "C1b2a, O-M175", mtDna: "B4a1a1a", color: "#0284c7", history: "Western Caroline island isolation holding remote maritime Austronesian lineages." },
+      "PSE": { country: "Palestine", ethnicity: "Palestinian Arab", yDna: "J1-M267 (~45%), E-M35 (~18%), J2a, R1b", mtDna: "H, J1, T, R0a", color: "#059669", history: "Deep Levantine Canaanite Bronze Age genetic continuity within the Jordan valley." },
+      "PAN": { country: "Panama", ethnicity: "Mestizo, Ngäbe, Kuna, Afro-Panamanian", yDna: "Q-M3 (~30%), R1b (~35%), E-M2 (~15%)", mtDna: "A2 (~60% peak), B2, C1, L2a", color: "#dc2626", history: "Isthmian land bridge between continents with exceptional maternal A2 haplogroup frequency." },
+      "PNG": { country: "Papua New Guinea", ethnicity: "Papuan / Highland / Coastal", yDna: "M-M186 (~60% highlands), C1b2b, S-M230", mtDna: "P (~40%), Q, B4a1a1a (coast)", color: "#d97706", history: "50,000-year Papuan Sahul isolation; highest density of archaic Denisovan gene flow on Earth." },
+      "PRY": { country: "Paraguay", ethnicity: "Mestizo (Guaraní)", yDna: "R1b (~50%), Q-M3 (~20%), I2", mtDna: "A2, B2, C1, D1 (>85% Guaraní maternal)", color: "#dc2626", history: "Bilingual nation preserving near-universal Guaraní indigenous maternal genomic lines." },
+      "PER": { country: "Peru", ethnicity: "Quechua, Aymara, Mestizo", yDna: "Q-M3 (>80% indigenous component)", mtDna: "A2, B2, C1, D1", color: "#c026d3", history: "Andean civilizational isolation (Norte Chico, Wari, Inca) maintaining Pleistocene Y-DNA Q-M3." },
+      "PHL": { country: "Philippines", ethnicity: "Filipino (Tagalog, Ilocano, Cebuano, Aeta)", yDna: "O1a-M119 (~35%), O2 (~30%), K2b (Aeta Negrito)", mtDna: "B4a, F1a, M7", color: "#0284c7", history: "Austronesian expansion over indigenous Sundaland Negrito hunter-gatherers (Aeta)." },
+      "POL": { country: "Poland", ethnicity: "Polish / West Slavic", yDna: "R1a-M458 / Z280 (~56%), R1b (~15%), I2a, I1", mtDna: "H, U5, J, T2", color: "#dc2626", history: "Vistula and Oder river basins Slavonic hearth showing continuous medieval population stability." },
+      "PRT": { country: "Portugal", ethnicity: "Portuguese", yDna: "R1b-DF27 (~60%), G2a, E-M81 (~8%), J2", mtDna: "H1, H3, U5, V", color: "#16a34a", history: "Atlantic Lusitanian and Celtiberian substrate with Southwest European R1b-DF27 peak." },
+      "QAT": { country: "Qatar", ethnicity: "Qatari Arab", yDna: "J1-M267 (~58%), E-M35, J2", mtDna: "R0a, HV, U7, L3", color: "#7c3aed", history: "Peninsular Arabian desert maritime population with high paternal J1-M267 density." },
+      "ROU": { country: "Romania", ethnicity: "Romanian", yDna: "I2a-Y3120 (~28%), R1a (~18%), R1b (~15%), E-V13 (~15%)", mtDna: "H, U5, J, T", color: "#d97706", history: "Dacian kingdom core merged with Roman colonists and Slavic migrations along the Danube." },
+      "RUS": { country: "Russia", ethnicity: "Russian, Tatar, Bashkir, Chechen, Chukchi", yDna: "R1a-Z280/M458 (~46%), N1c (~16%), I2a, C2", mtDna: "H, U5, C4, D4", color: "#dc2626", history: "Eurasian expanse spanning East Slavic plains, Uralic N1c, and Siberian indigenous lineages." },
+      "RWA": { country: "Rwanda", ethnicity: "Hutu, Tutsi, Twa", yDna: "E-M2 (~82%), B2 (Twa hunter-gatherer substrate)", mtDna: "L2a, L0a, L3e", color: "#0284c7", history: "Interlacustrine highlands populated by Bantu agriculturalists, pastoralists, and Twa pygmies." },
+      "KNA": { country: "Saint Kitts and Nevis", ethnicity: "Afro-Kittitian", yDna: "E-M2 (~90%), R1b", mtDna: "L2a, L3e, L1b", color: "#16a34a", history: "Leeward island Caribbean sugar economy population origins." },
+      "LCA": { country: "Saint Lucia", ethnicity: "Afro-Lucian", yDna: "E-M2 (~88%), R1b", mtDna: "L2a, L3e, L1b", color: "#0284c7", history: "Windward island historic mix of Kalinago substrate and West African populations." },
+      "VCT": { country: "Saint Vincent and the Grenadines", ethnicity: "Afro-Vincentian, Garifuna", yDna: "E-M2 (~85%), Q-M3", mtDna: "L2a, L3e, A2", color: "#16a34a", history: "Origin island of the Black Carib (Garifuna) Afro-Indigenous synthesis." },
+      "WSM": { country: "Samoa", ethnicity: "Samoan (Polynesian)", yDna: "C1b2a1 (~60%), O3", mtDna: "B4a1a1a (Polynesian Motif ~90%)", color: "#0284c7", history: "Cradle of Polynesian culture; world-peak expression of Lapita maternal lineage B4a1a1a." },
+      "SMR": { country: "San Marino", ethnicity: "Sammarinese / Romagnol", yDna: "R1b-U152 (~50%), J2a, I2a", mtDna: "H, U5, J", color: "#0284c7", history: "Appennine mountain republic isolation preserving ancient Italic/Roman lineages." },
+      "STP": { country: "Sao Tome and Principe", ethnicity: "Forro, Mestiço", yDna: "E-M2 (~85%), R1b", mtDna: "L1b, L2a, L3e", color: "#16a34a", history: "Gulf of Guinea uninhabited island populated from 15th-century West Africa." },
+      "SAU": { country: "Saudi Arabia", ethnicity: "Arab", yDna: "J1-M267 (J-P58 ~70% peak), E-M35", mtDna: "R0a (~30%), HV, J1, T", color: "#16a34a", history: "Despersion center of Afroasiatic Semitic languages and Y-DNA Haplogroup J1." },
+      "SEN": { country: "Senegal", ethnicity: "Wolof, Pulaar, Serer, Jola", yDna: "E-M2 (~80%), R1b-V88 (~10%)", mtDna: "L1b, L2a, L3b", color: "#16a34a", history: "Westernmost point of Africa; core of Jolof Empire and Senegambian megalith cultures." },
+      "SRB": { country: "Serbia", ethnicity: "Serb", yDna: "I2a-Y3120 (~34%), R1a (~20%), E-V13 (~15%), R1b", mtDna: "H, U5, J, T", color: "#0284c7", history: "Balkan corridor merging Mesolithic Danube Gorges hunter-gatherers with Slavic expansions." },
+      "SYC": { country: "Seychelles", ethnicity: "Seychellois Creole", yDna: "E-M2 (~45%), R1b (~30%), R1a, O2", mtDna: "L2a, L3e, M, H", color: "#dc2626", history: "Indian Ocean island nexus blending African, European, and Asian lineages." },
+      "SLE": { country: "Sierra Leone", ethnicity: "Temne, Mende, Krio", yDna: "E-M2 (E1b1a ~90%)", mtDna: "L1b, L2a, L3e", color: "#16a34a", history: "Upper Guinea forest refuge home to ancient Mende and Temne indigenous lines." },
+      "SGP": { country: "Singapore", ethnicity: "Chinese, Malay, Indian", yDna: "O2 (~40%), O1a, R1a (Indian), E-M2", mtDna: "M7, D4, F1a, M3", color: "#dc2626", history: "Global maritime crossroads populated via modern East, South, and Southeast Asian migrations." },
+      "SVK": { country: "Slovakia", ethnicity: "Slovak / West Slavic", yDna: "R1a-M458 (~42%), R1b (~23%), I2a (~15%), E-V13", mtDna: "H, U5, J, T2", color: "#0284c7", history: "Tatra Mountains Slavonic heartland with ancient Nitra principality heritage." },
+      "SVN": { country: "Slovenia", ethnicity: "Slovene / South-West Slavic", yDna: "R1a (~38%), R1b (~20%), I2a (~20%), E-V13", mtDna: "H, U5, J, T", color: "#16a34a", history: "Alpine Slavic junction incorporating ancient Noricum and Veneti genetic elements." },
+      "SLB": { country: "Solomon Islands", ethnicity: "Melanesian / Polynesian", yDna: "M-M186 (~50%), C1b2b, S", mtDna: "P, Q, B4a1a1a", color: "#0284c7", history: "Near Oceania archipelago holding archaic Papuan substrate and Lapita seafaring input." },
+      "SOM": { country: "Somalia", ethnicity: "Somali", yDna: "E-V32 (E1b1b1a1a ~80% peak), T1a-M70 (~10%)", mtDna: "L3x, L3e, M1, R0a", color: "#0284c7", history: "Horn of Africa homogenous population carrying Cushitic Y-DNA E-V32 peak frequencies." },
+      "ZAF": { country: "South Africa", ethnicity: "Black (Zulu/Xhosa), Afrikaner, Coloured, Indian", yDna: "E-M2 (~50%), R1b (~15%), A1b/B2 (San ~10%)", mtDna: "L0d (Khoisan), L2a, L3e, H", color: "#16a34a", history: "Convergence zone of ancient Khoisan hunter-gatherers, Bantu migrations, and European/Asian settlers." },
+      "SSD": { country: "South Sudan", ethnicity: "Dinka, Nuer, Shilluk, Bari", yDna: "A3b2-M13 (~45%), E-M2 (~35%), B2", mtDna: "L2a, L0a, L3f", color: "#059669", history: "Nilotic core hearth preserving earth's highest frequency of basal Y-DNA Haplogroup A3b2." },
+      "ESP": { country: "Spain", ethnicity: "Spanish (Castilian, Catalan, Basque, Galician)", yDna: "R1b-DF27 (~65%), I2a, G2a, E-M81 (~5%)", mtDna: "H1, H3 (~45%), V, U5", color: "#dc2626", history: "Iberian Peninsula refuge area during Last Glacial Maximum; origin point of Western R1b-DF27." },
+      "LKA": { country: "Sri Lanka", ethnicity: "Sinhalese, Sri Lankan Tamil, Vedda", yDna: "R1a (~25%), H-M69 (~25%), L, J2", mtDna: "M lineage (~65%), U2, R", color: "#d97706", history: "Island habitat where indigenous hunter-gatherers (Vedda) mixed with Indo-Aryan and Tamil migrations." },
+      "SDN": { country: "Sudan", ethnicity: "Sudanese Arab, Nubian, Beja", yDna: "J1-M267 (~40%), E-M78 (~20%), A3b2, E-M2", mtDna: "L3, L2a, M1, R0a", color: "#d97706", history: "Ancient Kingdom of Kush and Nubian civilization bridge between Sub-Saharan Africa and Egypt." },
+      "SUR": { country: "Suriname", ethnicity: "Hindustani, Maroon, Creole, Javanese, Amerindian", yDna: "R1a (~30%), E-M2 (~30%), O1b (~15%), Q-M3", mtDna: "M, L2a, B4, A2", color: "#16a34a", history: "Amazonian coastal multi-ethnic enclave forged by colonial labor importations." },
+      "SWE": { country: "Sweden", ethnicity: "Swedish / Sámi", yDna: "I1-M253 (~42%), R1a-M417 (~24%), R1b-U106 (~20%)", mtDna: "H, U5a, J, V", color: "#0284c7", history: "Scandinavian hunter-gatherer fusion with Battle Axe culture (Corded Ware R1a)." },
+      "CHE": { country: "Switzerland", ethnicity: "Swiss (German, French, Italian, Romansh)", yDna: "R1b-U152 / U106 (~55%), I1, E-V13, G2a", mtDna: "H1, H3, U5, J", color: "#dc2626", history: "Alpine Celtic Helvetii sanctuary merged with Alemannic Germanic and Italic populations." },
+      "SYR": { country: "Syria", ethnicity: "Syrian Arab, Kurd, Assyrian", yDna: "J1-M267 (~35%), J2-M172 (~22%), E-M35, R1b", mtDna: "H, J, T, HV, U7", color: "#059669", history: "Ancient Amorite, Aramaean, and Levantine agricultural hearth of Northern Fertile Crescent." },
+      "TWN": { country: "Taiwan", ethnicity: "Han Taiwanese, Taiwanese Indigenous (Gaoshan)", yDna: "O2-M122 (~50%), O1a-M119 (~25% / 90% in indigenous)", mtDna: "B4a1a (~40%), E1a, M7", color: "#0284c7", history: "Accepted global origin and expansion hearth of all Austronesian island populations (Y-DNA O1a)." },
+      "TJK": { country: "Tajikistan", ethnicity: "Tajik, Pamiri", yDna: "R1a-Z93 (~68% peak in Pamirs), J2, Q, R1b", mtDna: "H, U7, T2, D4", color: "#16a34a", history: "Ancient Eastern Iranian Sogdian and Bactrian mountain refuge preserving peak Indo-Iranian R1a-Z93." },
+      "TZA": { country: "Tanzania", ethnicity: "Sukuma, Nyamwezi, Swahili, Hadza, Sandawe", yDna: "E-M2 (~70%), B2 (Hadza ~30%), A3b2", mtDna: "L2a, L0a, L3e, L0d (Sandawe)", color: "#16a34a", history: "Olduvai Gorge hearth; preserves ancient click-speaking hunter-gatherer click isolates (Hadza/Sandawe)." },
+      "THA": { country: "Thailand", ethnicity: "Thai, Isan, Karen, Hmong", yDna: "O1b1a1a (~50%), O2 (~30%), C2", mtDna: "F1a, B5a, M7, N9a", color: "#d97706", history: "Chao Phraya basin populated by Tai-Kadai migrations assimilating indigenous Dvaravati Mon substrate." },
+      "TLS": { country: "Timor-Leste", ethnicity: "Timorese (Tetum, Mambai)", yDna: "O1b1 (~40%), C1b2b (Papuan substrate ~30%), M", mtDna: "B4a, M28, Q", color: "#dc2626", history: "Wallacean boundary island blending Austronesian agriculturalists with indigenous Papuan lineages." },
+      "TGO": { country: "Togo", ethnicity: "Ewe, Mina, Kabye", yDna: "E-M2 (E1b1a ~90%)", mtDna: "L1b, L2a, L3e", color: "#16a34a", history: "West African Slave Coast corridor dominated by Kwa-speaking agriculturalist lineages." },
+      "TON": { country: "Tonga", ethnicity: "Tongan (Polynesian)", yDna: "C1b2a1 (~60%), O3", mtDna: "B4a1a1a (Polynesian Motif ~92%)", color: "#dc2626", history: "Maritime Tu'i Tonga Empire hearth; high expression of Lapita founder genetic setup." },
+      "TTO": { country: "Trinidad and Tobago", ethnicity: "Indo-Trinidadians, Afro-Trinidadians", yDna: "R1a (~30%), E-M2 (~30%), H-M69, R1b", mtDna: "M3, L2a, L3e, R", color: "#dc2626", history: "Southernmost Caribbean island population shaped by transatlantic imports and South Asian indentured labor." },
+      "TUN": { country: "Tunisia", ethnicity: "Arab-Berber", yDna: "E-M81 (~55%), J1-M267 (~30%), R1b", mtDna: "H, U6, L3, M1", color: "#dc2626", history: "Heartland of ancient Phoenician Carthage and Numidia; high Amazigh Y-DNA E-M81 preservation." },
+      "TUR": { country: "Turkey", ethnicity: "Turkish, Kurd, Zaza", yDna: "J2a-M410 (~24%), R1b-L23 (~16%), G2a (~13%), C2 (Turkic ~5%)", mtDna: "H, U5, T, J, N1b", color: "#dc2626", history: "Anatolian Neolithic farmer bridge synthesizing West Asian native substrate with medieval Central Asian Turkic input." },
+      "TKM": { country: "Turkmenistan", ethnicity: "Turkmen", yDna: "Q-M242 (~42% peak in Teke), J2 (~20%), R1a, C2", mtDna: "H, U7, J, D4", color: "#16a34a", history: "Margiana (BMAC) ancient agricultural oasis blended with Seljuk Oghuz Turkic migrations." },
+      "TUV": { country: "Tuvalu", ethnicity: "Tuvaluan", yDna: "C1b2a1, O3", mtDna: "B4a1a1a", color: "#0284c7", history: "Polynesian outlier archipelago preserving Lapita founder maternal lineage." },
+      "UGA": { country: "Uganda", ethnicity: "Baganda, Banyankole, Acholi, Langi", yDna: "E-M2 (~75%), E-M35 (Nilotic ~15%)", mtDna: "L2a, L0a, L3e", color: "#d97706", history: "Interlacustrine kingdom zone (Buganda/Bunyoro) where Central Bantu meets Nilotic migrations." },
+      "UKR": { country: "Ukraine", ethnicity: "Ukrainian / East Slavic", yDna: "R1a-Z280/M458 (~44%), I2a-Y3120 (~20%), R1b, E-V13", mtDna: "H, U5, J, T2", color: "#d97706", history: "Pontic-Caspian steppe origin of Yamnaya Indo-European expansions and Dnieper Slavic hearth." },
+      "ARE": { country: "United Arab Emirates", ethnicity: "Emirati Arab", yDna: "J1-M267 (~55%), E-M35, J2, R1a", mtDna: "R0a, HV, U7, L3", color: "#16a34a", history: "Maritime Gulf trade region holding ancient South Arabian and Bedouin paternal markers." },
+      "GBR": { country: "United Kingdom", ethnicity: "British (English, Scottish, Welsh, Irish)", yDna: "R1b-L21 / U106 (~68%), I1-M253 (~14%), R1a", mtDna: "H1, H3, U5, J, T", color: "#2563eb", history: "Insular Atlantic Bronze Age Bell Beaker dominance (~90% population replacement ~2400 BCE), Anglo-Saxon/Viking layers." },
+      "USA": { country: "United States", ethnicity: "Euro-American, African-American, Hispanic, Asian, Native American", yDna: "R1b (~45%), E-M2 (~10%), I1 (~8%), Q-M3 (~2%), O2", mtDna: "H (~40%), L2a/L3e (~12%), A2/B2/C1/D1, D4", color: "#2563eb", history: "Complex global demographic synthesis overlaying indigenous Native American ancestral lands." },
+      "URY": { country: "Uruguay", ethnicity: "Euro-Uruguayan / Mestizo / Afro-Uruguayan", yDna: "R1b (~55%), I2 (~10%), Q-M3 (~7%), E-M2", mtDna: "H (~45%), C1b/D1 (Charrúa ~30%), L2a", mtDna: "H, C1, D1, L2a", color: "#0284c7", history: "Southern Cone European settlement incorporating indigenous Charrúa maternal lines." },
+      "UZB": { country: "Uzbekistan", ethnicity: "Uzbek, Tajik, Karakalpak", yDna: "C2-M217 (~25%), R1a-Z93 (~22%), J2 (~16%), Q", mtDna: "D4, H, U7, C4", color: "#0284c7", history: "Transoxiana Silk Road oasis cities (Samarkand, Bukhara) synthesizing Iranian Sogdians with Turkic nomads." },
+      "VUT": { country: "Vanuatu", ethnicity: "Ni-Vanuatu (Melanesian)", yDna: "M-M186 (~75%), C1b2b, S", mtDna: "P, Q, B4a1a1a", color: "#d97706", history: "Initial Lapita settlement fast-replaced by subsequent Papuan Melanesian migrations." },
+      "VAT": { country: "Vatican City", ethnicity: "Italian / Clerical European", yDna: "R1b-U152, J2a, E-V13", mtDna: "H, J, T", color: "#d97706", history: "Enclave inside Rome, Italy; genetic profile mirrors broader central Italian population." },
+      "VEN": { country: "Venezuela", ethnicity: "Mestizo, Euro-Venezuelan, Afro-Venezuelan", yDna: "R1b (~48%), Q-M3 (~20%), E-M2 (~10%)", mtDna: "A2 (~40%), B2 (~25%), C1, L2a", color: "#d97706", history: "Orinoco basin Carib and Arawak hearth blended with Spanish and West African influx." },
+      "VNM": { country: "Vietnam", ethnicity: "Kinh (Viet), Muong, Tay, Hmong", yDna: "O2-M122 (~40%), O1b1a1a (~33%), C2", mtDna: "F1a, M7, B5a, N9a", color: "#16a34a", history: "Red River Delta Dong Son culture hearth driving ancient Austroasiatic genetic continuity." },
+      "YEM": { country: "Yemen", ethnicity: "Yemeni Arab", yDna: "J1-P58 (~72% peak), E-M35 (~12%), T1a", mtDna: "R0a (~35%), HV, L3, U7", color: "#dc2626", history: "Sabaean / Himyarite Kingdom center; peak global frequency and diversity of Y-DNA Haplogroup J1." },
+      "ZMB": { country: "Zambia", ethnicity: "Bemba, Tonga, Lozi", yDna: "E-M2 (~85%), B2", mtDna: "L2a, L0a, L3e", color: "#16a34a", history: "Central African plateau crossroads of the Luba-Lunda dynastic kingdom expansions." },
+      "ZWE": { country: "Zimbabwe", ethnicity: "Shona, Ndebele", yDna: "E-M2 (E1b1a ~85%), B2", mtDna: "L2a, L0a, L3e", color: "#16a34a", history: "Great Zimbabwe stone civilization builders; Shona genetic continuity across the Zambezi/Limpopo region." }
+    };
 
-L.control.zoom({ position: 'topright' }).addTo(map);
+    const map = L.map('map', { center: [20.0, 15.0], zoom: 3, zoomControl: false });
+    L.control.zoom({ position: 'topleft' }).addTo(map);
 
-// 3. Complete Empire Country Classifications
-const empireClassification = {
-  "ITA": "west", "ITALY": "west",
-  "ESP": "west", "SPAIN": "west",
-  "PRT": "west", "PORTUGAL": "west",
-  "FRA": "west", "FRANCE": "west",
-  "GBR": "west", "UNITED KINGDOM": "west",
-  "BEL": "west", "BELGIUM": "west",
-  "NLD": "west", "NETHERLANDS": "west",
-  "LUX": "west", "LUXEMBOURG": "west",
-  "CHE": "west", "SWITZERLAND": "west",
-  "AUT": "west", "AUSTRIA": "west",
-  "DEU": "west", "GERMANY": "west",
-  "MAR": "west", "MOROCCO": "west",
-  "DZA": "west", "ALGERIA": "west",
-  "TUN": "west", "TUNISIA": "west",
-  "LBY": "west", "LIBYA": "west",
-  "LIE": "west", "LIECHTENSTEIN": "west",
-  "AND": "west", "ANDORRA": "west",
-  "SMR": "west", "SAN MARINO": "west",
-  "MCO": "west", "MONACO": "west",
-  "VAT": "west", "VATICAN CITY": "west",
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', {
+      subdomains: 'abcd', maxZoom: 19
+    }).addTo(map);
 
-  "GRC": "east", "GREECE": "east",
-  "TUR": "east", "TURKEY": "east",
-  "ROU": "east", "ROMANIA": "east",
-  "HUN": "east", "HUNGARY": "east",
-  "BGR": "east", "BULGARIA": "east",
-  "HRV": "east", "CROATIA": "east",
-  "SRB": "east", "SERBIA": "east",
-  "BIH": "east", "BOSNIA AND HERZEGOVINA": "east",
-  "ALB": "east", "ALBANIA": "east",
-  "SVN": "east", "SLOVENIA": "east",
-  "MKD": "east", "NORTH MACEDONIA": "east",
-  "MNE": "east", "MONTENEGRO": "east",
-  "RKS": "east", "KOSOVO": "east",
-  "MLT": "east", "MALTA": "east",
-  "CYP": "east", "CYPRUS": "east",
-  "SYR": "east", "SYRIA": "east",
-  "IRQ": "east", "IRAQ": "east",
-  "ISR": "east", "ISRAEL": "east",
-  "JOR": "east", "JORDAN": "east",
-  "LBN": "east", "LEBANON": "east",
-  "EGY": "east", "EGYPT": "east"
-};
+    let geojsonLayer;
 
-// 4. Expanded & Region-Accurate Phenotype & Genetic Data
-const rawGeneticData = {
-  "SVN": {
-    name: "SLOVENIA",
-    phenotypes: [
-      { name: "Norid", desc: "Predominant blondish-to-intermediate Dinaricized phenotype characterized by tall stature, mesomorph build, and a high-bridged convex nose." },
-      { name: "Alpine", desc: "Round-headed (brachycephalic), intermediate-stature phenotype common across the Alpine and Karst regions." },
-      { name: "Dinarid", desc: "Classic Balkan planoccipital type with a tall frame, long face, and prominent nasal bridge." },
-      { name: "Gorid", desc: "Alpinized East-European Cro-Magnoid blend prevalent in eastern interior and Pannonian borderlands." }
-    ],
-    yDna: "R1a (37%), R1b (21%), I2a (20%), E1b1b (5%), I1 (9%)",
-    mtDna: "H (47%), U (18%), J (9%), T (8%), K (7%)",
-    summary: "Forms an anthropological junction connecting Central European Alpine lineages with Balkan Dinaric traits and early Slavic R1a expansion."
-  },
-  "HRV": {
-    name: "CROATIA",
-    phenotypes: [
-      { name: "Dinarid", desc: "Dominant phenotype along the Dalmatian coast and Dinaric Alps; tall stature, high brachycephalic skull, flat occiput, and aquiline nose." },
-      { name: "Norid", desc: "Lighter-pigmented Dinaric variant frequent in northern interior regions and Zagorje." },
-      { name: "Gorid", desc: "Reduced Cro-Magnoid Alpine variant common in Slavonia and the Pannonian plains." },
-      { name: "Pontid", desc: "Meso-leptomorphic Eastern Mediterranean phenotype found in coastal and southern Adriatic pockets." }
-    ],
-    yDna: "I2a-Y3120 (~38%), R1a-Z280 (~24%), R1b (~12%), E-V13 (~9%), J2 (~6%)",
-    mtDna: "H (45%), U5 (19%), J (9%), T2 (8%), K (7%)",
-    summary: "Characterized by peak European frequencies of Balkan Y-DNA haplogroup I2a alongside Early Medieval Slavic influxes across the Dinaric Alps."
-  },
-  "HUN": {
-    name: "HUNGARY",
-    phenotypes: [
-      { name: "Gorid", desc: "Predominant Pannonian phenotype; round-headed Alpine strain with Cro-Magnoid features and intermediate pigmentation." },
-      { name: "Danubian Nordid", desc: "Lighter-pigmented, mesocephalic Slavic-influenced strain prevalent across northern and eastern plains." },
-      { name: "Alpine", desc: "Classic brachycephalic Central European mountain phenotype common in Transdanubia." },
-      { name: "Dinarid", desc: "Tall, convex-nosed strain observed along western and southern border zones." },
-      { name: "Turanid", desc: "Minor Uralic/Central Asian influenced phenotype preserved historically in Alfold nomadic descendant pockets." }
-    ],
-    yDna: "R1a (30%), R1b (24%), I2a (15%), E1b1b (9%), J2 (7%), I1 (8%)",
-    mtDna: "H (46%), U5 (18%), J (10%), T (8%), K (7%)",
-    summary: "Central European Danubian crossroads blending Slavic, Germanic, and Celtic genetic ancestral strains with minor steppe nomadic legacy."
-  },
-  "ROU": {
-    name: "ROMANIA",
-    phenotypes: [
-      { name: "Carpathid", desc: "Characteristic Carpathian mountain type; a blend of Dinarid, Alpine, and unreduced Cro-Magnoid features." },
-      { name: "Pontid", desc: "Eastern Mediterranean phenotype with a straight nasal bridge and tallish stature predominant in southern Danubian lowlands." },
-      { name: "Dinarid", desc: "High-headed, planoccipital strain common throughout Transylvania and Moldavian hills." },
-      { name: "Gorid", desc: "Alpinized Cro-Magnoid variant frequent in northern Moldavia and Bucovina." }
-    ],
-    yDna: "I2a-Y3120 (~28%), R1a-Z280 (~18%), R1b (~15%), E-V13 (~15%), J2a (~10%)",
-    mtDna: "H (44%), U5 (18%), J (10%), T2 (9%), K (7%)",
-    summary: "Reflects a Dacian and Balkan Neolithic base synthesized with Early Medieval Slavic migrations and Danubian Roman agricultural influences."
-  },
-  "SRB": {
-    name: "SERBIA",
-    phenotypes: [
-      { name: "Dinarid", desc: "Predominant Balkan phenotype; tall stature, high brachycephalic head, flattened occiput, and long convex nose." },
-      { name: "Norid", desc: "Light-featured Dinaricized phenotype common in northern Vojvodina and western valleys." },
-      { name: "Gorid", desc: "Alpinized Cro-Magnoid strain prevalent in central and eastern interior regions." },
-      { name: "Pontid", desc: "Mesocephalic Eastern Mediterranean variant observed along eastern and southern border regions." }
-    ],
-    yDna: "I2a-Y3120 (~34%), E-V13 (~18%), R1a-Z280 (~16%), R1b (~8%), J2b (~7%)",
-    mtDna: "H (43%), U5 (18%), J (10%), T2 (9%), K (6%)",
-    summary: "Core Central-Balkan population combining Paleo-Balkan Thracian/Illyrian lineages with substantial 6th-7th century Slavic genetic influx."
-  },
-  "NLD": {
-    name: "NETHERLANDS",
-    phenotypes: [
-      { name: "Hallstatt Nordic", desc: "Classic tall, leptomorphic, mesocephalic phenotype predominant across North Europe." },
-      { name: "Borreby", desc: "Unreduced, brachycephalic Cro-Magnoid type common in coastal northern Europe." },
-      { name: "Subnordic", desc: "Nordic-Alpine blend characterized by intermediate stature and mesocephalic indexing." },
-      { name: "Keltid Nordic", desc: "Dinaricized Nordic variant marked by a convex nose and mesocephalic head shape." }
-    ],
-    yDna: "R1b (70%), I1 (18%), R1a (6%), I2 (3%), E1b1b (2%)",
-    mtDna: "H (48%), U (18%), K (8%), J (7%), T (7%)",
-    summary: "Characterized by high proportions of North-Central European lineages, with dominant Mesolithic and Bronze Age Bell Beaker Ancestry."
-  },
-  "BEL": {
-    name: "BELGIUM",
-    phenotypes: [
-      { name: "Subnordic", desc: "Predominant phenotype resulting from Nordic and Alpine historical convergence." },
-      { name: "Alpine", desc: "Reduced, brachycephalic, intermediate stature phenotype found in southern/Walloon regions." },
-      { name: "Keltid Nordic", desc: "Mesoscelic, leptomorphic type with Dinarid influence common in Flanders." },
-      { name: "Borreby", desc: "Heavy-boned Cro-Magnid variant present along coastal areas." }
-    ],
-    yDna: "R1b (61%), I1 (12%), I2 (8%), E1b1b (6%), R1a (4%)",
-    mtDna: "H (47%), U (17%), K (9%), J (8%), T (7%)",
-    summary: "Exhibits a phenotypic transition zone between Northern Low Country types and Central European Alpine variants."
-  },
-  "DEU": {
-    name: "GERMANY",
-    phenotypes: [
-      { name: "Faelid", desc: "Unreduced Cromagnid type characterized by a broad face and tall stature." },
-      { name: "Hallstatt Nordic", desc: "Predominant in Northern Germany; fair featured and leptomorphic." },
-      { name: "Alpine", desc: "Common in Southern Germany and Bavaria; round-headed and medium stature." },
-      { name: "Borreby", desc: "Brachycephalic Cromagnid variant common in northern and central regions." }
-    ],
-    yDna: "R1b (44%), R1a (16%), I1 (16%), I2 (8%), E1b1b (5.5%)",
-    mtDna: "H (48%), U (18%), V (7%), K (6%), J (6%)",
-    summary: "A major phenotypic intersection point in Central Europe featuring Cromagnid, Nordic, and Alpine strains."
-  },
-  "CHE": {
-    name: "SWITZERLAND",
-    phenotypes: [
-      { name: "Alpine", desc: "Classic round-headed (brachycephalic), medium-stature phenotype predominant across the central and southern Swiss Valleys." },
-      { name: "Norid", desc: "Dinaricized Nordic variant marked by lighter pigmentation, a convex nose, and tall stature; widespread in central/northern cantons." },
-      { name: "Dinaro-Med", desc: "Dinaricized Mediterranean strain common in the southern Italian-speaking Ticino region." },
-      { name: "Subnordic", desc: "Intermediate Nordic-Alpine blend common in western and French-speaking cantons." }
-    ],
-    yDna: "R1b (50%), I1 (11%), E1b1b (8%), J2 (7%), G2a (7%), R1a (5%)",
-    mtDna: "H (46%), U (18%), K (8%), J (8%), T (6%)",
-    summary: "Exhibits a core Central European Alpine profile with significant Dinaric and Nordic influences across regional linguistic zones."
-  },
-  "LIE": {
-    name: "LIECHTENSTEIN",
-    phenotypes: [
-      { name: "Alpine", desc: "Dominant mountain phenotype characterized by brachycephaly and intermediate stature." },
-      { name: "Norid", desc: "Light-pigmented Dinaricized phenotype prevalent in Rhine valley populations." },
-      { name: "Subnordic", desc: "Blend of Central European Alpine and Nordic morphological features." }
-    ],
-    yDna: "R1b (48%), I1 (12%), R1a (9%), E1b1b (7%), G2a (6%)",
-    mtDna: "H (47%), U (18%), K (8%), J (7%), T (7%)",
-    summary: "Aligns closely with eastern Swiss and western Austrian Alpine-Norid phenotype distributions in the Upper Rhine Valley."
-  },
-  "AUT": {
-    name: "AUSTRIA",
-    phenotypes: [
-      { name: "Norid", desc: "Predominant blondish-to-intermediate Dinaric variant with a leptomorphic frame and convex nasal profile." },
-      { name: "Alpine", desc: "Widespread brachycephalic type dominant throughout the Tyrol, Carinthia, and Alpine valleys." },
-      { name: "Dinarid", desc: "Tall, planoccipital, high-headed type frequent in southern and eastern border regions." },
-      { name: "Subnordic", desc: "Nordic-Alpine blend common in the northern Danube plains and lower Austria." }
-    ],
-    yDna: "R1b (32%), R1a (19%), I2 (12%), E1b1b (9%), J2 (7%), I1 (7%)",
-    mtDna: "H (44%), U (19%), J (9%), K (8%), T (7%)",
-    summary: "Forms a key transition zone between Central European Alpine, Southeastern Balkan Dinaric, and Slavic R1a lineage spheres."
-  },
-  "ITA": { 
-    name: "ITALY", 
-    phenotypes: [
-      { name: "Dinaro-Med", desc: "Dinaricized Mediterranean variant common in Central and Southern Italy." },
-      { name: "Gracile Med", desc: "Small-framed, dark-featured, leptomorphic type predominant in the south and islands." },
-      { name: "Alpine", desc: "Broad-faced, brachycephalic phenotype common in Northern Italy and the Alpine foothills." },
-      { name: "Atlanto-Med", desc: "Tall, longer-headed Mediterranean variant common in Western and Northern coastal Italy." }
-    ],
-    yDna: "R1b (40%), J2 (18%), E1b1b (11%), I2 (6%), G (6%)", 
-    mtDna: "H (43%), U (18%), J (9%), T (9%), K (6%)",
-    summary: "Shows a distinct North-South phenotypic cline, shifting from Alpine/Atlanto-Med in the Alps to Dinaro-Med and Gracile Med in the Mediterranean south."
-  },
-  "ESP": { 
-    name: "SPAIN", 
-    phenotypes: [
-      { name: "Gracile Med", desc: "Classic Iberian Mediterranean type with small frame and dark features." },
-      { name: "Atlanto-Med", desc: "Taller Mediterranean variant common across Northern and Atlantic Spain." },
-      { name: "Iberian Alpine", desc: "Reduced, broader-faced variant found in mountainous inland zones." }
-    ],
-    yDna: "R1b (69%), E1b1b (10%), J2 (8%), I2 (5%), G (3%)", 
-    mtDna: "H (48%), U (19%), J (8%), T (7%), K (5%)",
-    summary: "Strongly dominated by Western European Bronze Age genetics (R1b-DF27) with high prevalence of West Mediterranean phenotypes."
-  },
-  "FRA": { 
-    name: "FRANCE", 
-    phenotypes: [
-      { name: "Alpine", desc: "Reduced brachycephalic type prevalent in Central France and Massif Central." },
-      { name: "Atlanto-Med", desc: "Prevalent along Atlantic and Mediterranean coastal regions." },
-      { name: "Norid", desc: "Blondish Dinaricized phenotype found in eastern border regions." },
-      { name: "Subnordic", desc: "Nordic-Alpine blend common across Northern France." }
-    ],
-    yDna: "R1b (60%), E1b1b (8%), I2 (10%), I1 (9%), J2 (6%)", 
-    mtDna: "H (45%), U (17%), K (8%), J (8%), T (6%)",
-    summary: "A geographic crossroads exhibiting high Atlantic, Alpine, and Mediterranean physical diversity."
-  },
-  "GRC": { 
-    name: "GREECE", 
-    phenotypes: [
-      { name: "Pontid", desc: "Eastern Mediterranean phenotype characterized by tallish stature and straight nose." },
-      { name: "Dinaro-Med", desc: "Prevalent Dinaricized Mediterranean variant throughout mainland Greece." },
-      { name: "Aegean Med", desc: "Island Mediterranean variant with fine features and moderate stature." },
-      { name: "Alpine-Med", desc: "Brachycephalic Mediterranean blend common in mountainous inland Greece." }
-    ],
-    yDna: "E1b1b (27%), J2 (23%), R1b (15%), I2 (10%), R1a (10%)", 
-    mtDna: "H (40%), U (20%), J (10%), T (8%), K (6%)",
-    summary: "Reflects ancient Anatolian Neolithic Farmer and Balkan Bronze Age migrations, exhibiting Aegean and Balkan phenotypes."
-  }
-};
-
-// Map population helper
-const geneticData = {};
-Object.keys(rawGeneticData).forEach(code => {
-  const data = rawGeneticData[code];
-  geneticData[code] = data;
-  if (data.name) {
-    geneticData[data.name.toUpperCase()] = data;
-  }
-});
-
-// Default Fallback Generator for unlisted countries
-function getGeneticInfo(code, name) {
-  const candidates = [code, name, name ? name.replace(/^(THE\s+|REPUBLIC\s+OF\s+|FEDERATION\s+OF\s+|STATE\s+OF\s+)/i, '').trim() : null];
-
-  for (let key of candidates) {
-    if (key && typeof key === 'string') {
-      const upperKey = key.trim().toUpperCase();
-      if (geneticData[upperKey]) {
-        return geneticData[upperKey];
+    // Helper for fallback color generation
+    function generateNationalColor(iso) {
+      let hash = 0;
+      for (let i = 0; i < iso.length; i++) {
+        hash = iso.charCodeAt(i) + ((hash << 5) - hash);
       }
+      const h = Math.abs(hash) % 360;
+      return `hsl(${h}, 65%, 50%)`;
     }
-  }
 
-  return {
-    name: name || "Territory",
-    phenotypes: [
-      { name: "Regional Phenotype Strain", desc: "Standard morphological profile matching regional geographical zone." }
-    ],
-    yDna: "Haplogroup breakdown compiled via regional database",
-    mtDna: "Haplogroup breakdown compiled via regional database",
-    summary: "Data profile derived from standard geographic clade distributions."
-  };
-}
+    // Load World GeoJSON boundaries
+    fetch('https://raw.githubusercontent.com/johan/world.geo.json/master/countries.geo.json')
+      .then(res => res.json())
+      .then(worldGeoJson => {
+        
+        geojsonLayer = L.geoJSON(worldGeoJson, {
+          style: function(feature) {
+            const iso = feature.id || feature.properties.ISO_A3;
+            const countryData = genomicDatabase[iso];
+            const fillColor = countryData ? countryData.color : generateNationalColor(iso);
 
-// 5. Contrast Hover Colors
-const hoverPalettes = {
-  west: ['#dc2626', '#ef4444', '#f87171', '#b91c1c'],
-  east: ['#a855f7', '#c084fc', '#d8b4fe', '#7e22ce'],
-  outside: ['#34d399', '#6ee7b7', '#059669', '#10b981']
-};
+            return {
+              fillColor: fillColor,
+              weight: 1,
+              opacity: 0.8,
+              color: '#ffffff',
+              fillOpacity: 0.68
+            };
+          },
+          onEachFeature: function(feature, layer) {
+            const iso = feature.id || feature.properties.ISO_A3;
+            const countryName = feature.properties.name || "Sovereign Nation";
+            
+            const data = genomicDatabase[iso] || {
+              country: countryName,
+              ethnicity: `Population of ${countryName}`,
+              yDna: "Regional Lineage Data",
+              mtDna: "Regional Lineage Data",
+              color: generateNationalColor(iso),
+              history: `Geographic border region covering ${countryName} [ISO: ${iso}].`
+            };
 
-function getHoverColor(type, identifier) {
-  const palette = hoverPalettes[type];
-  let hash = 0;
-  const str = String(identifier || 'default');
-  for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
-  return palette[Math.abs(hash) % palette.length];
-}
+            layer.bindTooltip(data.country, { className: 'genomic-tooltip', direction: 'auto' });
 
-function getEmpireDomain(props) {
-  if (!props) return "outside";
-  const potentialKeys = [props.ISO_A3, props.iso_a3, props.NAME, props.ADMIN, props.name];
-  for (let rawKey of potentialKeys) {
-    if (!rawKey || typeof rawKey !== 'string') continue;
-    const key = rawKey.trim().toUpperCase();
-    if (empireClassification[key]) return empireClassification[key];
-  }
-  return "outside";
-}
+            layer.on({
+              mouseover: function(e) {
+                const l = e.target;
+                l.setStyle({ weight: 2.5, color: '#0f172a', fillOpacity: 0.9 });
+                l.bringToFront();
+                updatePanel(data);
+              },
+              mouseout: function(e) {
+                geojsonLayer.resetStyle(e.target);
+              },
+              click: function(e) {
+                map.fitBounds(e.target.getBounds(), { padding: [30, 30] });
+                updatePanel(data);
+              }
+            });
+          }
+        }).addTo(map);
+      })
+      .catch(err => console.error("Error loading map boundary files:", err));
 
-// Render GeoJSON
-fetch('https://raw.githubusercontent.com/datasets/geo-countries/master/data/countries.geojson')
-  .then(res => res.json())
-  .then(geoData => renderMap(geoData));
+    function updatePanel(props) {
+      const panel = document.getElementById('panelContent');
+      panel.innerHTML = `
+        <h2>${props.country}</h2>
+        <div class="subtitle">${props.ethnicity}</div>
+        
+        <div class="haplo-grid">
+          <div class="haplo-card">
+            <span class="label">Border Y-DNA Profile</span>
+            <span class="val">${props.yDna}</span>
+          </div>
+          <div class="haplo-card">
+            <span class="label">Border mtDNA Profile</span>
+            <span class="val">${props.mtDna}</span>
+          </div>
+        </div>
 
-function renderMap(geoData) {
-  L.geoJSON(geoData, {
-    style: function(feature) {
-      const empire = getEmpireDomain(feature.properties);
-      if (empire === "west") return { fillColor: '#b91c1c', fillOpacity: 0.85, color: '#f87171', weight: 1.2 };
-      if (empire === "east") return { fillColor: '#6b21a8', fillOpacity: 0.85, color: '#c084fc', weight: 1.2 };
-      return { fillColor: '#ffffff', fillOpacity: 0.9, color: '#10b981', weight: 1 };
-    },
-    onEachFeature: function(feature, layer) {
-      const props = feature.properties || {};
-      const name = props.ADMIN || props.NAME || props.name || "Territory";
-      const code = props.ISO_A3 || props.iso_a3 || name;
-      const empire = getEmpireDomain(props);
-
-      layer.on({
-        mouseover: function(e) {
-          const target = e.target;
-          target.setStyle({ fillColor: getHoverColor(empire, code), fillOpacity: 1, weight: 2.5 });
-          target.bringToFront();
-
-          const genetics = getGeneticInfo(code, name);
-          const phenotypeBadges = genetics.phenotypes.map(p => 
-            `<span class="inline-block bg-amber-100 text-amber-800 border border-amber-300 rounded px-1.5 py-0.5 text-[10px] font-semibold mr-1 mb-1">${p.name}</span>`
-          ).join('');
-
-          document.getElementById('info-card').innerHTML = `
-            <div class="text-amber-700 font-bold text-sm border-b border-slate-200 pb-1 mb-1.5">${genetics.name || name}</div>
-            <div class="space-y-2">
-              <div class="bg-white p-2 rounded border border-slate-200">
-                <span class="font-bold text-slate-700 block text-[11px] mb-1">👤 Key Phenotypes:</span>
-                <div>${phenotypeBadges}</div>
-              </div>
-              <button onclick="openPhenotypePage('${code}', '${name}')" class="w-full mt-2 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded text-[11px] transition shadow">
-                View Detailed Profile Page →
-              </button>
-            </div>
-          `;
-        },
-        mouseout: function(e) {
-          const target = e.target;
-          if (empire === "west") target.setStyle({ fillColor: '#b91c1c', fillOpacity: 0.85, weight: 1.2 });
-          else if (empire === "east") target.setStyle({ fillColor: '#6b21a8', fillOpacity: 0.85, weight: 1.2 });
-          else target.setStyle({ fillColor: '#ffffff', fillOpacity: 0.9, weight: 1 });
-        },
-        click: function() {
-          openPhenotypePage(code, name);
-        }
-      });
+        <div class="history-section">
+          <h4>In-Border Archaeo-Genetic Evidence</h4>
+          <p>${props.history}</p>
+        </div>
+      `;
     }
-  }).addTo(map);
-}
-
-// 6. Phenotype Detail Drawer / Dedicated Page Logic
-function openPhenotypePage(code, name) {
-  const genetics = getGeneticInfo(code, name);
-
-  document.getElementById('page-country-title').innerText = genetics.name || name;
-  document.getElementById('page-ydna').innerText = genetics.yDna;
-  document.getElementById('page-mtdna').innerText = genetics.mtDna;
-  document.getElementById('page-description').innerText = genetics.summary;
-
-  const phenotypeContainer = document.getElementById('page-phenotypes-list');
-  phenotypeContainer.innerHTML = genetics.phenotypes.map(p => `
-    <div class="bg-slate-50 border border-slate-200 p-3 rounded-md">
-      <span class="font-bold text-amber-800 text-sm block">${p.name}</span>
-      <p class="text-xs text-slate-600 mt-1">${p.desc}</p>
-    </div>
-  `).join('');
-
-  document.getElementById('phenotype-page').classList.remove('hidden');
-}
-
-function closePhenotypePage() {
-  document.getElementById('phenotype-page').classList.add('hidden');
-}
-
-function zoomToEmpire(region) {
-  if (region === 'west') map.flyToBounds(L.latLngBounds([32.0, -12.0], [58.0, 18.0]), { duration: 1.2 });
-  if (region === 'east') map.flyToBounds(L.latLngBounds([22.0, 12.0], [50.0, 48.0]), { duration: 1.2 });
-}
-
-function resetView() {
-  map.flyToBounds(bounds, { duration: 1.2 });
-}
-</script>
+  </script>
 </body>
 </html>
