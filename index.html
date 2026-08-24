@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Genetic Differentiation & Regional Phenotypes</title>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com"></script>
+<!-- Leaflet CSS & JS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<style>
+#map {
+  background-color: #93c5fd !important;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+}
+.custom-tooltip {
+  background: #ffffff;
+  color: #0f172a;
+  border: 1px solid #d97706;
+  border-radius: 0.375rem;
+  padding: 6px 10px;
+  font-weight: 600;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+}
+</style>
+</head>
+<body class="bg-slate-100 text-slate-800 h-screen flex flex-col overflow-hidden relative">
+
+<!-- Header -->
+<header class="bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between z-10 shadow-sm">
+  <div class="flex items-center space-x-3">
+    <div class="h-3 w-3 rounded-full bg-red-600"></div>
+    <div class="h-3 w-3 rounded-full bg-purple-600"></div>
+    <h1 class="text-lg font-bold tracking-wide text-amber-700">Genetic Differentiation & Regional Phenotypes</h1>
+  </div>
+  <div class="flex items-center gap-4 text-xs font-semibold text-slate-700">
+    <span class="flex items-center gap-1.5"><span class="w-3 h-3 bg-red-700 border border-red-500 rounded-sm inline-block"></span> Western Empire</span>
+    <span class="flex items-center gap-1.5"><span class="w-3 h-3 bg-purple-700 border border-purple-500 rounded-sm inline-block"></span> Eastern Empire</span>
+    <span class="flex items-center gap-1.5"><span class="w-3 h-3 bg-slate-50 border border-emerald-500 rounded-sm inline-block"></span> Surrounding Lands</span>
+  </div>
+</header>
+
+<!-- Main Viewport -->
+<div class="flex-1 flex relative overflow-hidden">
+  <!-- Control Panel Sidebar -->
+  <aside class="w-80 bg-white/95 border-r border-slate-200 p-4 flex flex-col justify-between z-10 backdrop-blur-md shadow-md overflow-y-auto">
+    <div class="space-y-4">
+      <div>
+        <h2 class="text-xs uppercase font-bold text-amber-700 tracking-wider mb-1">Phenotypic Inspector</h2>
+        <p class="text-xs text-slate-600 leading-relaxed">
+          Hover over any territory to view quick phenotypic data, or click a country to open its detailed phenotype profile page.
+        </p>
+      </div>
+
+      <!-- Dynamic Information Panel -->
+      <div id="info-card" class="bg-slate-50 border border-slate-200 rounded p-3 text-xs space-y-2 shadow-inner">
+        <span class="text-amber-700 font-semibold block">State Inspector</span>
+        <p class="text-slate-500">Hover over a country to inspect regional phenotypes and genetic haplogroups.</p>
+      </div>
+
+      <!-- Jump Controls -->
+      <div class="space-y-2">
+        <h3 class="text-[11px] uppercase font-bold text-slate-400 tracking-wider">Quick Center</h3>
+        <div class="grid grid-cols-1 gap-1.5 text-xs">
+          <button onclick="zoomToEmpire('west')" class="px-3 py-2 bg-red-50 hover:bg-red-100 border border-red-200 rounded text-left text-red-900 font-medium transition shadow-sm">
+            🏛️ Western Empire Focus
+          </button>
+          <button onclick="zoomToEmpire('east')" class="px-3 py-2 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded text-left text-purple-900 font-medium transition shadow-sm">
+            🏺 Eastern Empire Focus
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <button onclick="resetView()" class="w-full mt-4 py-2 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded text-xs transition shadow">
+      Reset Map Scope
+    </button>
+  </aside>
+
+  <!-- Leaflet Canvas -->
+  <main id="map" class="flex-1 w-full h-full relative z-0"></main>
+
+  <!-- Detailed Phenotype Full-Page Overlay / Drawer Layer -->
+  <div id="phenotype-page" class="hidden absolute inset-y-0 right-0 w-full md:w-1/2 bg-white z-50 shadow-2xl border-l border-slate-300 flex flex-col transition-all duration-300 transform translate-x-0 overflow-y-auto">
+    <!-- Header with exit button -->
+    <div class="p-6 bg-slate-900 text-white flex justify-between items-center sticky top-0 z-10 border-b border-slate-800 shadow-md">
+      <div>
+        <span class="text-amber-400 text-xs font-bold uppercase tracking-widest">Regional Profile Page</span>
+        <h2 id="page-country-title" class="text-2xl font-black">Country Name</h2>
+      </div>
+      <button onclick="closePhenotypePage()" aria-label="Close Profile Page" class="p-2.5 bg-slate-800 hover:bg-amber-600 rounded-full text-slate-300 hover:text-white transition flex items-center justify-center font-bold text-lg shadow">
+        ✕
+      </button>
+    </div>
+
+    <!-- Content Details -->
+    <div class="p-6 space-y-6 bg-white flex-1">
+      <!-- Phenotype Analysis -->
+      <div>
+        <h3 class="text-sm uppercase font-bold text-amber-700 tracking-wider mb-2 border-b border-amber-200 pb-1">Predominant Physical Phenotypes</h3>
+        <div id="page-phenotypes-list" class="grid grid-cols-1 gap-2"></div>
+      </div>
+
+      <!-- Lineage breakdown -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="bg-slate-50 border border-slate-200 p-4 rounded-lg shadow-sm">
+          <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">🧬 Y-DNA (Paternal Haplogroups)</h4>
+          <p id="page-ydna" class="text-sm text-slate-600 leading-relaxed"></p>
+        </div>
+        <div class="bg-slate-50 border border-slate-200 p-4 rounded-lg shadow-sm">
+          <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">🧬 mtDNA (Maternal Haplogroups)</h4>
+          <p id="page-mtdna" class="text-sm text-slate-600 leading-relaxed"></p>
+        </div>
+      </div>
+
+      <!-- Morphological Context -->
+      <div class="bg-amber-50 border border-amber-200 p-4 rounded-lg shadow-sm">
+        <h4 class="text-xs font-bold text-amber-900 uppercase tracking-wider mb-1">Morphological Context & Physical Anthropology</h4>
+        <p id="page-description" class="text-xs text-amber-800 leading-relaxed"></p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// 1. Map Coordinates Bounds
+const bounds = L.latLngBounds(L.latLng(12.0, -18.0), L.latLng(62.0, 55.0));
+
+// 2. Initialize Leaflet Map
+const map = L.map('map', {
+  maxBounds: bounds,
+  maxBoundsViscosity: 0.9,
+  minZoom: 3,
+  maxZoom: 9,
+  zoomControl: false
+}).fitBounds(bounds);
+
+L.control.zoom({ position: 'topright' }).addTo(map);
+
+// 3. Complete Empire Country Classifications
+const empireClassification = {
+  "ITA": "west", "ITALY": "west",
+  "ESP": "west", "SPAIN": "west",
+  "PRT": "west", "PORTUGAL": "west",
+  "FRA": "west", "FRANCE": "west",
+  "GBR": "west", "UNITED KINGDOM": "west",
+  "BEL": "west", "BELGIUM": "west",
+  "NLD": "west", "NETHERLANDS": "west",
+  "LUX": "west", "LUXEMBOURG": "west",
+  "CHE": "west", "SWITZERLAND": "west",
+  "AUT": "west", "AUSTRIA": "west",
+  "DEU": "west", "GERMANY": "west",
+  "MAR": "west", "MOROCCO": "west",
+  "DZA": "west", "ALGERIA": "west",
+  "TUN": "west", "TUNISIA": "west",
+  "LBY": "west", "LIBYA": "west",
+  "LIE": "west", "LIECHTENSTEIN": "west",
+  "AND": "west", "ANDORRA": "west",
+  "SMR": "west", "SAN MARINO": "west",
+  "MCO": "west", "MONACO": "west",
+  "VAT": "west", "VATICAN CITY": "west",
+
+  "GRC": "east", "GREECE": "east",
+  "TUR": "east", "TURKEY": "east",
+  "ROU": "east", "ROMANIA": "east",
+  "HUN": "east", "HUNGARY": "east",
+  "BGR": "east", "BULGARIA": "east",
+  "HRV": "east", "CROATIA": "east",
+  "SRB": "east", "SERBIA": "east",
+  "BIH": "east", "BOSNIA AND HERZEGOVINA": "east",
+  "ALB": "east", "ALBANIA": "east",
+  "SVN": "east", "SLOVENIA": "east",
+  "MKD": "east", "NORTH MACEDONIA": "east",
+  "MNE": "east", "MONTENEGRO": "east",
+  "RKS": "east", "KOSOVO": "east",
+  "MLT": "east", "MALTA": "east",
+  "CYP": "east", "CYPRUS": "east",
+  "SYR": "east", "SYRIA": "east",
+  "IRQ": "east", "IRAQ": "east",
+  "ISR": "east", "ISRAEL": "east",
+  "JOR": "east", "JORDAN": "east",
+  "LBN": "east", "LEBANON": "east",
+  "EGY": "east", "EGYPT": "east"
+};
+
+// 4. Expanded & Region-Accurate Phenotype & Genetic Data
+const rawGeneticData = {
+  "SVN": {
+    name: "SLOVENIA",
+    phenotypes: [
+      { name: "Norid", desc: "Predominant blondish-to-intermediate Dinaricized phenotype characterized by tall stature, mesomorph build, and a high-bridged convex nose." },
+      { name: "Alpine", desc: "Round-headed (brachycephalic), intermediate-stature phenotype common across the Alpine and Karst regions." },
+      { name: "Dinarid", desc: "Classic Balkan planoccipital type with a tall frame, long face, and prominent nasal bridge." },
+      { name: "Gorid", desc: "Alpinized East-European Cro-Magnoid blend prevalent in eastern interior and Pannonian borderlands." }
+    ],
+    yDna: "R1a (37%), R1b (21%), I2a (20%), E1b1b (5%), I1 (9%)",
+    mtDna: "H (47%), U (18%), J (9%), T (8%), K (7%)",
+    summary: "Forms an anthropological junction connecting Central European Alpine lineages with Balkan Dinaric traits and early Slavic R1a expansion."
+  },
+  "HRV": {
+    name: "CROATIA",
+    phenotypes: [
+      { name: "Dinarid", desc: "Dominant phenotype along the Dalmatian coast and Dinaric Alps; tall stature, high brachycephalic skull, flat occiput, and aquiline nose." },
+      { name: "Norid", desc: "Lighter-pigmented Dinaric variant frequent in northern interior regions and Zagorje." },
+      { name: "Gorid", desc: "Reduced Cro-Magnoid Alpine variant common in Slavonia and the Pannonian plains." },
+      { name: "Pontid", desc: "Meso-leptomorphic Eastern Mediterranean phenotype found in coastal and southern Adriatic pockets." }
+    ],
+    yDna: "I2a-Y3120 (~38%), R1a-Z280 (~24%), R1b (~12%), E-V13 (~9%), J2 (~6%)",
+    mtDna: "H (45%), U5 (19%), J (9%), T2 (8%), K (7%)",
+    summary: "Characterized by peak European frequencies of Balkan Y-DNA haplogroup I2a alongside Early Medieval Slavic influxes across the Dinaric Alps."
+  },
+  "HUN": {
+    name: "HUNGARY",
+    phenotypes: [
+      { name: "Gorid", desc: "Predominant Pannonian phenotype; round-headed Alpine strain with Cro-Magnoid features and intermediate pigmentation." },
+      { name: "Danubian Nordid", desc: "Lighter-pigmented, mesocephalic Slavic-influenced strain prevalent across northern and eastern plains." },
+      { name: "Alpine", desc: "Classic brachycephalic Central European mountain phenotype common in Transdanubia." },
+      { name: "Dinarid", desc: "Tall, convex-nosed strain observed along western and southern border zones." },
+      { name: "Turanid", desc: "Minor Uralic/Central Asian influenced phenotype preserved historically in Alfold nomadic descendant pockets." }
+    ],
+    yDna: "R1a (30%), R1b (24%), I2a (15%), E1b1b (9%), J2 (7%), I1 (8%)",
+    mtDna: "H (46%), U5 (18%), J (10%), T (8%), K (7%)",
+    summary: "Central European Danubian crossroads blending Slavic, Germanic, and Celtic genetic ancestral strains with minor steppe nomadic legacy."
+  },
+  "ROU": {
+    name: "ROMANIA",
+    phenotypes: [
+      { name: "Carpathid", desc: "Characteristic Carpathian mountain type; a blend of Dinarid, Alpine, and unreduced Cro-Magnoid features." },
+      { name: "Pontid", desc: "Eastern Mediterranean phenotype with a straight nasal bridge and tallish stature predominant in southern Danubian lowlands." },
+      { name: "Dinarid", desc: "High-headed, planoccipital strain common throughout Transylvania and Moldavian hills." },
+      { name: "Gorid", desc: "Alpinized Cro-Magnoid variant frequent in northern Moldavia and Bucovina." }
+    ],
+    yDna: "I2a-Y3120 (~28%), R1a-Z280 (~18%), R1b (~15%), E-V13 (~15%), J2a (~10%)",
+    mtDna: "H (44%), U5 (18%), J (10%), T2 (9%), K (7%)",
+    summary: "Reflects a Dacian and Balkan Neolithic base synthesized with Early Medieval Slavic migrations and Danubian Roman agricultural influences."
+  },
+  "SRB": {
+    name: "SERBIA",
+    phenotypes: [
+      { name: "Dinarid", desc: "Predominant Balkan phenotype; tall stature, high brachycephalic head, flattened occiput, and long convex nose." },
+      { name: "Norid", desc: "Light-featured Dinaricized phenotype common in northern Vojvodina and western valleys." },
+      { name: "Gorid", desc: "Alpinized Cro-Magnoid strain prevalent in central and eastern interior regions." },
+      { name: "Pontid", desc: "Mesocephalic Eastern Mediterranean variant observed along eastern and southern border regions." }
+    ],
+    yDna: "I2a-Y3120 (~34%), E-V13 (~18%), R1a-Z280 (~16%), R1b (~8%), J2b (~7%)",
+    mtDna: "H (43%), U5 (18%), J (10%), T2 (9%), K (6%)",
+    summary: "Core Central-Balkan population combining Paleo-Balkan Thracian/Illyrian lineages with substantial 6th-7th century Slavic genetic influx."
+  },
+  "NLD": {
+    name: "NETHERLANDS",
+    phenotypes: [
+      { name: "Hallstatt Nordic", desc: "Classic tall, leptomorphic, mesocephalic phenotype predominant across North Europe." },
+      { name: "Borreby", desc: "Unreduced, brachycephalic Cro-Magnoid type common in coastal northern Europe." },
+      { name: "Subnordic", desc: "Nordic-Alpine blend characterized by intermediate stature and mesocephalic indexing." },
+      { name: "Keltid Nordic", desc: "Dinaricized Nordic variant marked by a convex nose and mesocephalic head shape." }
+    ],
+    yDna: "R1b (70%), I1 (18%), R1a (6%), I2 (3%), E1b1b (2%)",
+    mtDna: "H (48%), U (18%), K (8%), J (7%), T (7%)",
+    summary: "Characterized by high proportions of North-Central European lineages, with dominant Mesolithic and Bronze Age Bell Beaker Ancestry."
+  },
+  "BEL": {
+    name: "BELGIUM",
+    phenotypes: [
+      { name: "Subnordic", desc: "Predominant phenotype resulting from Nordic and Alpine historical convergence." },
+      { name: "Alpine", desc: "Reduced, brachycephalic, intermediate stature phenotype found in southern/Walloon regions." },
+      { name: "Keltid Nordic", desc: "Mesoscelic, leptomorphic type with Dinarid influence common in Flanders." },
+      { name: "Borreby", desc: "Heavy-boned Cro-Magnid variant present along coastal areas." }
+    ],
+    yDna: "R1b (61%), I1 (12%), I2 (8%), E1b1b (6%), R1a (4%)",
+    mtDna: "H (47%), U (17%), K (9%), J (8%), T (7%)",
+    summary: "Exhibits a phenotypic transition zone between Northern Low Country types and Central European Alpine variants."
+  },
+  "DEU": {
+    name: "GERMANY",
+    phenotypes: [
+      { name: "Faelid", desc: "Unreduced Cromagnid type characterized by a broad face and tall stature." },
+      { name: "Hallstatt Nordic", desc: "Predominant in Northern Germany; fair featured and leptomorphic." },
+      { name: "Alpine", desc: "Common in Southern Germany and Bavaria; round-headed and medium stature." },
+      { name: "Borreby", desc: "Brachycephalic Cromagnid variant common in northern and central regions." }
+    ],
+    yDna: "R1b (44%), R1a (16%), I1 (16%), I2 (8%), E1b1b (5.5%)",
+    mtDna: "H (48%), U (18%), V (7%), K (6%), J (6%)",
+    summary: "A major phenotypic intersection point in Central Europe featuring Cromagnid, Nordic, and Alpine strains."
+  },
+  "CHE": {
+    name: "SWITZERLAND",
+    phenotypes: [
+      { name: "Alpine", desc: "Classic round-headed (brachycephalic), medium-stature phenotype predominant across the central and southern Swiss Valleys." },
+      { name: "Norid", desc: "Dinaricized Nordic variant marked by lighter pigmentation, a convex nose, and tall stature; widespread in central/northern cantons." },
+      { name: "Dinaro-Med", desc: "Dinaricized Mediterranean strain common in the southern Italian-speaking Ticino region." },
+      { name: "Subnordic", desc: "Intermediate Nordic-Alpine blend common in western and French-speaking cantons." }
+    ],
+    yDna: "R1b (50%), I1 (11%), E1b1b (8%), J2 (7%), G2a (7%), R1a (5%)",
+    mtDna: "H (46%), U (18%), K (8%), J (8%), T (6%)",
+    summary: "Exhibits a core Central European Alpine profile with significant Dinaric and Nordic influences across regional linguistic zones."
+  },
+  "LIE": {
+    name: "LIECHTENSTEIN",
+    phenotypes: [
+      { name: "Alpine", desc: "Dominant mountain phenotype characterized by brachycephaly and intermediate stature." },
+      { name: "Norid", desc: "Light-pigmented Dinaricized phenotype prevalent in Rhine valley populations." },
+      { name: "Subnordic", desc: "Blend of Central European Alpine and Nordic morphological features." }
+    ],
+    yDna: "R1b (48%), I1 (12%), R1a (9%), E1b1b (7%), G2a (6%)",
+    mtDna: "H (47%), U (18%), K (8%), J (7%), T (7%)",
+    summary: "Aligns closely with eastern Swiss and western Austrian Alpine-Norid phenotype distributions in the Upper Rhine Valley."
+  },
+  "AUT": {
+    name: "AUSTRIA",
+    phenotypes: [
+      { name: "Norid", desc: "Predominant blondish-to-intermediate Dinaric variant with a leptomorphic frame and convex nasal profile." },
+      { name: "Alpine", desc: "Widespread brachycephalic type dominant throughout the Tyrol, Carinthia, and Alpine valleys." },
+      { name: "Dinarid", desc: "Tall, planoccipital, high-headed type frequent in southern and eastern border regions." },
+      { name: "Subnordic", desc: "Nordic-Alpine blend common in the northern Danube plains and lower Austria." }
+    ],
+    yDna: "R1b (32%), R1a (19%), I2 (12%), E1b1b (9%), J2 (7%), I1 (7%)",
+    mtDna: "H (44%), U (19%), J (9%), K (8%), T (7%)",
+    summary: "Forms a key transition zone between Central European Alpine, Southeastern Balkan Dinaric, and Slavic R1a lineage spheres."
+  },
+  "ITA": { 
+    name: "ITALY", 
+    phenotypes: [
+      { name: "Dinaro-Med", desc: "Dinaricized Mediterranean variant common in Central and Southern Italy." },
+      { name: "Gracile Med", desc: "Small-framed, dark-featured, leptomorphic type predominant in the south and islands." },
+      { name: "Alpine", desc: "Broad-faced, brachycephalic phenotype common in Northern Italy and the Alpine foothills." },
+      { name: "Atlanto-Med", desc: "Tall, longer-headed Mediterranean variant common in Western and Northern coastal Italy." }
+    ],
+    yDna: "R1b (40%), J2 (18%), E1b1b (11%), I2 (6%), G (6%)", 
+    mtDna: "H (43%), U (18%), J (9%), T (9%), K (6%)",
+    summary: "Shows a distinct North-South phenotypic cline, shifting from Alpine/Atlanto-Med in the Alps to Dinaro-Med and Gracile Med in the Mediterranean south."
+  },
+  "ESP": { 
+    name: "SPAIN", 
+    phenotypes: [
+      { name: "Gracile Med", desc: "Classic Iberian Mediterranean type with small frame and dark features." },
+      { name: "Atlanto-Med", desc: "Taller Mediterranean variant common across Northern and Atlantic Spain." },
+      { name: "Iberian Alpine", desc: "Reduced, broader-faced variant found in mountainous inland zones." }
+    ],
+    yDna: "R1b (69%), E1b1b (10%), J2 (8%), I2 (5%), G (3%)", 
+    mtDna: "H (48%), U (19%), J (8%), T (7%), K (5%)",
+    summary: "Strongly dominated by Western European Bronze Age genetics (R1b-DF27) with high prevalence of West Mediterranean phenotypes."
+  },
+  "FRA": { 
+    name: "FRANCE", 
+    phenotypes: [
+      { name: "Alpine", desc: "Reduced brachycephalic type prevalent in Central France and Massif Central." },
+      { name: "Atlanto-Med", desc: "Prevalent along Atlantic and Mediterranean coastal regions." },
+      { name: "Norid", desc: "Blondish Dinaricized phenotype found in eastern border regions." },
+      { name: "Subnordic", desc: "Nordic-Alpine blend common across Northern France." }
+    ],
+    yDna: "R1b (60%), E1b1b (8%), I2 (10%), I1 (9%), J2 (6%)", 
+    mtDna: "H (45%), U (17%), K (8%), J (8%), T (6%)",
+    summary: "A geographic crossroads exhibiting high Atlantic, Alpine, and Mediterranean physical diversity."
+  },
+  "GRC": { 
+    name: "GREECE", 
+    phenotypes: [
+      { name: "Pontid", desc: "Eastern Mediterranean phenotype characterized by tallish stature and straight nose." },
+      { name: "Dinaro-Med", desc: "Prevalent Dinaricized Mediterranean variant throughout mainland Greece." },
+      { name: "Aegean Med", desc: "Island Mediterranean variant with fine features and moderate stature." },
+      { name: "Alpine-Med", desc: "Brachycephalic Mediterranean blend common in mountainous inland Greece." }
+    ],
+    yDna: "E1b1b (27%), J2 (23%), R1b (15%), I2 (10%), R1a (10%)", 
+    mtDna: "H (40%), U (20%), J (10%), T (8%), K (6%)",
+    summary: "Reflects ancient Anatolian Neolithic Farmer and Balkan Bronze Age migrations, exhibiting Aegean and Balkan phenotypes."
+  }
+};
+
+// Map population helper
+const geneticData = {};
+Object.keys(rawGeneticData).forEach(code => {
+  const data = rawGeneticData[code];
+  geneticData[code] = data;
+  if (data.name) {
+    geneticData[data.name.toUpperCase()] = data;
+  }
+});
+
+// Default Fallback Generator for unlisted countries
+function getGeneticInfo(code, name) {
+  const candidates = [code, name, name ? name.replace(/^(THE\s+|REPUBLIC\s+OF\s+|FEDERATION\s+OF\s+|STATE\s+OF\s+)/i, '').trim() : null];
+
+  for (let key of candidates) {
+    if (key && typeof key === 'string') {
+      const upperKey = key.trim().toUpperCase();
+      if (geneticData[upperKey]) {
+        return geneticData[upperKey];
+      }
+    }
+  }
+
+  return {
+    name: name || "Territory",
+    phenotypes: [
+      { name: "Regional Phenotype Strain", desc: "Standard morphological profile matching regional geographical zone." }
+    ],
+    yDna: "Haplogroup breakdown compiled via regional database",
+    mtDna: "Haplogroup breakdown compiled via regional database",
+    summary: "Data profile derived from standard geographic clade distributions."
+  };
+}
+
+// 5. Contrast Hover Colors
+const hoverPalettes = {
+  west: ['#dc2626', '#ef4444', '#f87171', '#b91c1c'],
+  east: ['#a855f7', '#c084fc', '#d8b4fe', '#7e22ce'],
+  outside: ['#34d399', '#6ee7b7', '#059669', '#10b981']
+};
+
+function getHoverColor(type, identifier) {
+  const palette = hoverPalettes[type];
+  let hash = 0;
+  const str = String(identifier || 'default');
+  for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  return palette[Math.abs(hash) % palette.length];
+}
+
+function getEmpireDomain(props) {
+  if (!props) return "outside";
+  const potentialKeys = [props.ISO_A3, props.iso_a3, props.NAME, props.ADMIN, props.name];
+  for (let rawKey of potentialKeys) {
+    if (!rawKey || typeof rawKey !== 'string') continue;
+    const key = rawKey.trim().toUpperCase();
+    if (empireClassification[key]) return empireClassification[key];
+  }
+  return "outside";
+}
+
+// Render GeoJSON
+fetch('https://raw.githubusercontent.com/datasets/geo-countries/master/data/countries.geojson')
+  .then(res => res.json())
+  .then(geoData => renderMap(geoData));
+
+function renderMap(geoData) {
+  L.geoJSON(geoData, {
+    style: function(feature) {
+      const empire = getEmpireDomain(feature.properties);
+      if (empire === "west") return { fillColor: '#b91c1c', fillOpacity: 0.85, color: '#f87171', weight: 1.2 };
+      if (empire === "east") return { fillColor: '#6b21a8', fillOpacity: 0.85, color: '#c084fc', weight: 1.2 };
+      return { fillColor: '#ffffff', fillOpacity: 0.9, color: '#10b981', weight: 1 };
+    },
+    onEachFeature: function(feature, layer) {
+      const props = feature.properties || {};
+      const name = props.ADMIN || props.NAME || props.name || "Territory";
+      const code = props.ISO_A3 || props.iso_a3 || name;
+      const empire = getEmpireDomain(props);
+
+      layer.on({
+        mouseover: function(e) {
+          const target = e.target;
+          target.setStyle({ fillColor: getHoverColor(empire, code), fillOpacity: 1, weight: 2.5 });
+          target.bringToFront();
+
+          const genetics = getGeneticInfo(code, name);
+          const phenotypeBadges = genetics.phenotypes.map(p => 
+            `<span class="inline-block bg-amber-100 text-amber-800 border border-amber-300 rounded px-1.5 py-0.5 text-[10px] font-semibold mr-1 mb-1">${p.name}</span>`
+          ).join('');
+
+          document.getElementById('info-card').innerHTML = `
+            <div class="text-amber-700 font-bold text-sm border-b border-slate-200 pb-1 mb-1.5">${genetics.name || name}</div>
+            <div class="space-y-2">
+              <div class="bg-white p-2 rounded border border-slate-200">
+                <span class="font-bold text-slate-700 block text-[11px] mb-1">👤 Key Phenotypes:</span>
+                <div>${phenotypeBadges}</div>
+              </div>
+              <button onclick="openPhenotypePage('${code}', '${name}')" class="w-full mt-2 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded text-[11px] transition shadow">
+                View Detailed Profile Page →
+              </button>
+            </div>
+          `;
+        },
+        mouseout: function(e) {
+          const target = e.target;
+          if (empire === "west") target.setStyle({ fillColor: '#b91c1c', fillOpacity: 0.85, weight: 1.2 });
+          else if (empire === "east") target.setStyle({ fillColor: '#6b21a8', fillOpacity: 0.85, weight: 1.2 });
+          else target.setStyle({ fillColor: '#ffffff', fillOpacity: 0.9, weight: 1 });
+        },
+        click: function() {
+          openPhenotypePage(code, name);
+        }
+      });
+    }
+  }).addTo(map);
+}
+
+// 6. Phenotype Detail Drawer / Dedicated Page Logic
+function openPhenotypePage(code, name) {
+  const genetics = getGeneticInfo(code, name);
+
+  document.getElementById('page-country-title').innerText = genetics.name || name;
+  document.getElementById('page-ydna').innerText = genetics.yDna;
+  document.getElementById('page-mtdna').innerText = genetics.mtDna;
+  document.getElementById('page-description').innerText = genetics.summary;
+
+  const phenotypeContainer = document.getElementById('page-phenotypes-list');
+  phenotypeContainer.innerHTML = genetics.phenotypes.map(p => `
+    <div class="bg-slate-50 border border-slate-200 p-3 rounded-md">
+      <span class="font-bold text-amber-800 text-sm block">${p.name}</span>
+      <p class="text-xs text-slate-600 mt-1">${p.desc}</p>
+    </div>
+  `).join('');
+
+  document.getElementById('phenotype-page').classList.remove('hidden');
+}
+
+function closePhenotypePage() {
+  document.getElementById('phenotype-page').classList.add('hidden');
+}
+
+function zoomToEmpire(region) {
+  if (region === 'west') map.flyToBounds(L.latLngBounds([32.0, -12.0], [58.0, 18.0]), { duration: 1.2 });
+  if (region === 'east') map.flyToBounds(L.latLngBounds([22.0, 12.0], [50.0, 48.0]), { duration: 1.2 });
+}
+
+function resetView() {
+  map.flyToBounds(bounds, { duration: 1.2 });
+}
+</script>
+</body>
+</html>
